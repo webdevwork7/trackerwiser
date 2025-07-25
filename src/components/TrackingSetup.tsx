@@ -168,7 +168,7 @@ const TrackingSetup = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-slate-900">Your Tracking Code</CardTitle>
-                  <CardDescription>Copy and paste this code into your website's &lt;head&gt; section</CardDescription>
+                  <CardDescription>Copy and paste this code into your website&apos;s &lt;head&gt; section</CardDescription>
                 </div>
                 <Button 
                   onClick={copyToClipboard}
@@ -279,7 +279,7 @@ const TrackingSetup = () => {
                 <div>
                   <h4 className="font-semibold mb-2">Installation</h4>
                   <pre className="bg-slate-100 p-3 rounded text-sm">
-                    <code>pod 'TrackWiser', '~> 1.0.0'</code>
+                    <code>pod &apos;TrackWiser&apos;, &apos;~&gt; 1.0.0&apos;</code>
                   </pre>
                 </div>
                 <div>
@@ -310,7 +310,7 @@ TrackWiser.track("app_opened")`}</code>
                 <div>
                   <h4 className="font-semibold mb-2">Installation</h4>
                   <pre className="bg-slate-100 p-3 rounded text-sm">
-                    <code>implementation 'com.trackwiser:android:1.0.0'</code>
+                    <code>implementation &apos;com.trackwiser:android:1.0.0&apos;</code>
                   </pre>
                 </div>
                 <div>
