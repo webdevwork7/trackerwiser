@@ -163,9 +163,10 @@ const DynamicLiveAnalytics = () => {
       return acc;
     }, {} as Record<string, number>);
 
+    const totalEvents = events.length || 1; // Prevent division by zero
     const deviceData = Object.entries(deviceCounts).map(([name, count]) => ({
       name: name.charAt(0).toUpperCase() + name.slice(1),
-      value: Math.round((count / events.length) * 100),
+      value: Math.round((Number(count) / totalEvents) * 100),
       color: name === 'desktop' ? '#0EA5E9' : name === 'mobile' ? '#14B8A6' : '#F59E0B'
     }));
 
@@ -178,11 +179,11 @@ const DynamicLiveAnalytics = () => {
     }, {} as Record<string, number>);
 
     const topPages = Object.entries(pageCounts)
-      .sort(([, a], [, b]) => b - a)
+      .sort(([, a], [, b]) => Number(b) - Number(a))
       .slice(0, 4)
       .map(([page, views]) => ({
         page: page.length > 30 ? page.substring(0, 30) + '...' : page,
-        views,
+        views: Number(views),
         conversion: Math.random() * 10 + 2 // Mock conversion rate
       }));
 
@@ -195,11 +196,11 @@ const DynamicLiveAnalytics = () => {
     }, {} as Record<string, number>);
 
     const geoData = Object.entries(countryCounts)
-      .sort(([, a], [, b]) => b - a)
+      .sort(([, a], [, b]) => Number(b) - Number(a))
       .slice(0, 5)
       .map(([country, visitors]) => ({
         country,
-        visitors,
+        visitors: Number(visitors),
         flag: getCountryFlag(country)
       }));
 
