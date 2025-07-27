@@ -14,7 +14,166 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      analytics_events: {
+        Row: {
+          browser: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          device_type: string | null
+          event_type: string
+          id: string
+          ip_address: unknown | null
+          is_bot: boolean | null
+          os: string | null
+          page_url: string | null
+          referrer: string | null
+          session_id: string
+          user_agent: string | null
+          visitor_id: string
+          website_id: string
+        }
+        Insert: {
+          browser?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          device_type?: string | null
+          event_type: string
+          id?: string
+          ip_address?: unknown | null
+          is_bot?: boolean | null
+          os?: string | null
+          page_url?: string | null
+          referrer?: string | null
+          session_id: string
+          user_agent?: string | null
+          visitor_id: string
+          website_id: string
+        }
+        Update: {
+          browser?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          device_type?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: unknown | null
+          is_bot?: boolean | null
+          os?: string | null
+          page_url?: string | null
+          referrer?: string | null
+          session_id?: string
+          user_agent?: string | null
+          visitor_id?: string
+          website_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_events_website_id_fkey"
+            columns: ["website_id"]
+            isOneToOne: false
+            referencedRelation: "websites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_detections: {
+        Row: {
+          created_at: string
+          detection_reason: string
+          id: string
+          ip_address: unknown
+          is_blocked: boolean | null
+          user_agent: string | null
+          website_id: string
+        }
+        Insert: {
+          created_at?: string
+          detection_reason: string
+          id?: string
+          ip_address: unknown
+          is_blocked?: boolean | null
+          user_agent?: string | null
+          website_id: string
+        }
+        Update: {
+          created_at?: string
+          detection_reason?: string
+          id?: string
+          ip_address?: unknown
+          is_blocked?: boolean | null
+          user_agent?: string | null
+          website_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_detections_website_id_fkey"
+            columns: ["website_id"]
+            isOneToOne: false
+            referencedRelation: "websites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      websites: {
+        Row: {
+          created_at: string
+          domain: string
+          id: string
+          is_active: boolean | null
+          name: string
+          tracking_code: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          domain: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          tracking_code: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          domain?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          tracking_code?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
