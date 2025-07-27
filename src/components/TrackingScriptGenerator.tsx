@@ -19,8 +19,7 @@ const TrackingScriptGenerator = ({ website }: TrackingScriptGeneratorProps) => {
   const [copied, setCopied] = useState(false);
 
   const generateTrackingScript = () => {
-    return `<!-- TrackWiser Analytics - START -->
-<script>
+    return `<script>
 (function() {
   // TrackWiser Analytics - Self-contained tracking script
   var tw = window.tw = window.tw || [];
@@ -210,8 +209,7 @@ const TrackingScriptGenerator = ({ website }: TrackingScriptGeneratorProps) => {
     console.log('Session ID: ' + tw.sessionId);
   }
 })();
-</script>
-<!-- TrackWiser Analytics - END -->`;
+</script>`;
   };
 
   const copyToClipboard = () => {
@@ -222,16 +220,81 @@ const TrackingScriptGenerator = ({ website }: TrackingScriptGeneratorProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Step by Step Instructions */}
+      <Card className="bg-gradient-to-r from-blue-50 to-sky-50 border-sky-200">
+        <CardHeader>
+          <CardTitle className="text-slate-900 flex items-center text-xl">
+            <AlertTriangle className="w-6 h-6 mr-2 text-orange-500" />
+            📋 Step-by-Step Installation Guide
+          </CardTitle>
+          <CardDescription className="text-slate-700">
+            Follow these exact steps to install TrackWiser on your website
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-start space-x-3 p-4 bg-white rounded-lg border-l-4 border-blue-500">
+              <div className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">1</div>
+              <div>
+                <h3 className="font-semibold text-slate-900">Copy the Tracking Script</h3>
+                <p className="text-slate-600 text-sm">Click the "Copy Script" button below to copy the complete tracking code</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-3 p-4 bg-white rounded-lg border-l-4 border-green-500">
+              <div className="bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">2</div>
+              <div>
+                <h3 className="font-semibold text-slate-900">Open Your Website Files</h3>
+                <p className="text-slate-600 text-sm">Open your website's HTML files in your code editor or file manager</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-3 p-4 bg-white rounded-lg border-l-4 border-purple-500">
+              <div className="bg-purple-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">3</div>
+              <div>
+                <h3 className="font-semibold text-slate-900">Find the &lt;head&gt; Section</h3>
+                <p className="text-slate-600 text-sm">Look for the <code className="bg-gray-100 px-2 py-1 rounded">&lt;head&gt;</code> tag in your HTML file</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-3 p-4 bg-white rounded-lg border-l-4 border-orange-500">
+              <div className="bg-orange-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">4</div>
+              <div>
+                <h3 className="font-semibold text-slate-900">Paste the Script</h3>
+                <p className="text-slate-600 text-sm">Paste the copied script inside the <code className="bg-gray-100 px-2 py-1 rounded">&lt;head&gt;</code> section, before the closing <code className="bg-gray-100 px-2 py-1 rounded">&lt;/head&gt;</code> tag</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-3 p-4 bg-white rounded-lg border-l-4 border-teal-500">
+              <div className="bg-teal-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">5</div>
+              <div>
+                <h3 className="font-semibold text-slate-900">Save & Upload</h3>
+                <p className="text-slate-600 text-sm">Save your HTML file and upload it to your web server</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-3 p-4 bg-white rounded-lg border-l-4 border-pink-500">
+              <div className="bg-pink-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">6</div>
+              <div>
+                <h3 className="font-semibold text-slate-900">Test Your Website</h3>
+                <p className="text-slate-600 text-sm">Visit your website and check your dashboard - you should see visitor data within seconds!</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Website Info */}
       <Card className="bg-white/80 border-sky-100">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-slate-900 flex items-center">
                 <Code className="w-5 h-5 mr-2 text-sky-500" />
-                Tracking Code for {website.name}
+                Your Complete Tracking Script
               </CardTitle>
               <CardDescription>
-                Copy and paste this complete tracking script into your website's &lt;head&gt; section
+                This is the COMPLETE script for <strong>{website.name}</strong> - just copy and paste it!
               </CardDescription>
             </div>
             <Badge className="bg-green-100 text-green-800 border-green-200">
@@ -240,7 +303,6 @@ const TrackingScriptGenerator = ({ website }: TrackingScriptGeneratorProps) => {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Website Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-center space-x-2 p-3 bg-slate-50 rounded-lg">
               <Globe className="w-4 h-4 text-slate-500" />
@@ -256,28 +318,13 @@ const TrackingScriptGenerator = ({ website }: TrackingScriptGeneratorProps) => {
             </div>
           </div>
 
-          {/* Installation Instructions */}
-          <Alert className="border-orange-200 bg-orange-50">
-            <AlertTriangle className="h-4 w-4 text-orange-600" />
-            <AlertDescription>
-              <strong>Installation Steps:</strong>
-              <ol className="mt-2 ml-4 list-decimal space-y-1">
-                <li>Copy the tracking code below</li>
-                <li>Open your website's HTML file</li>
-                <li>Paste the code inside the <code>&lt;head&gt;</code> section</li>
-                <li>Save and upload your website</li>
-                <li>Visit your website to start tracking</li>
-              </ol>
-            </AlertDescription>
-          </Alert>
-
-          {/* Tracking Script */}
+          {/* The Complete Script */}
           <div className="relative">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-slate-700">Complete Tracking Script</span>
+              <span className="text-sm font-medium text-slate-700">🚀 COMPLETE TRACKING SCRIPT (Copy This!)</span>
               <Button
                 onClick={copyToClipboard}
-                className="bg-slate-800 hover:bg-slate-700 text-white"
+                className="bg-gradient-to-r from-sky-500 to-teal-500 hover:from-sky-600 hover:to-teal-600 text-white"
                 size="sm"
               >
                 {copied ? (
@@ -285,7 +332,7 @@ const TrackingScriptGenerator = ({ website }: TrackingScriptGeneratorProps) => {
                 ) : (
                   <Copy className="w-4 h-4 mr-1" />
                 )}
-                {copied ? 'Copied!' : 'Copy Script'}
+                {copied ? 'Copied!' : 'Copy Complete Script'}
               </Button>
             </div>
             <pre className="bg-slate-900 text-green-400 p-4 rounded-lg overflow-x-auto text-sm max-h-96 border">
@@ -294,47 +341,64 @@ const TrackingScriptGenerator = ({ website }: TrackingScriptGeneratorProps) => {
           </div>
 
           {/* Example Implementation */}
-          <Alert>
-            <Code className="h-4 w-4" />
+          <Alert className="border-orange-200 bg-orange-50">
+            <Code className="h-4 w-4 text-orange-600" />
             <AlertDescription>
-              <strong>Example HTML Structure:</strong>
+              <strong>💡 Example: How it should look in your HTML:</strong>
               <pre className="mt-2 bg-slate-100 p-3 rounded text-sm overflow-x-auto">
 {`<!DOCTYPE html>
 <html>
 <head>
   <title>Your Website</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- PASTE YOUR TRACKING SCRIPT HERE -->
   ${generateTrackingScript()}
+  <!-- END OF TRACKING SCRIPT -->
+  
 </head>
 <body>
-  <!-- Your website content -->
+  <h1>Your Website Content</h1>
+  <!-- Rest of your website -->
 </body>
 </html>`}
               </pre>
             </AlertDescription>
           </Alert>
 
-          {/* Features */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center space-x-2 p-3 bg-sky-50 rounded-lg">
-              <Eye className="w-5 h-5 text-sky-500" />
-              <div>
-                <div className="font-medium text-slate-900">Page Views</div>
-                <div className="text-sm text-slate-600">Automatic tracking</div>
+          {/* What Gets Tracked */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-sky-50 rounded-lg">
+              <div className="flex items-center space-x-2 mb-2">
+                <Eye className="w-5 h-5 text-blue-500" />
+                <h3 className="font-semibold text-slate-900">Page Views</h3>
               </div>
+              <p className="text-sm text-slate-600">Every page visit is automatically tracked</p>
             </div>
-            <div className="flex items-center space-x-2 p-3 bg-teal-50 rounded-lg">
-              <Zap className="w-5 h-5 text-teal-500" />
-              <div>
-                <div className="font-medium text-slate-900">User Actions</div>
-                <div className="text-sm text-slate-600">Clicks, scrolls, forms</div>
+            
+            <div className="p-4 bg-gradient-to-r from-green-50 to-teal-50 rounded-lg">
+              <div className="flex items-center space-x-2 mb-2">
+                <Zap className="w-5 h-5 text-green-500" />
+                <h3 className="font-semibold text-slate-900">User Actions</h3>
               </div>
+              <p className="text-sm text-slate-600">Button clicks, link clicks, form submissions</p>
             </div>
-            <div className="flex items-center space-x-2 p-3 bg-lime-50 rounded-lg">
-              <CheckCircle className="w-5 h-5 text-lime-500" />
-              <div>
-                <div className="font-medium text-slate-900">Bot Detection</div>
-                <div className="text-sm text-slate-600">Smart filtering</div>
+            
+            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg">
+              <div className="flex items-center space-x-2 mb-2">
+                <CheckCircle className="w-5 h-5 text-purple-500" />
+                <h3 className="font-semibold text-slate-900">Scroll Tracking</h3>
               </div>
+              <p className="text-sm text-slate-600">How far users scroll on your pages</p>
+            </div>
+            
+            <div className="p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg">
+              <div className="flex items-center space-x-2 mb-2">
+                <Globe className="w-5 h-5 text-orange-500" />
+                <h3 className="font-semibold text-slate-900">Device Info</h3>
+              </div>
+              <p className="text-sm text-slate-600">Browser, OS, device type, location</p>
             </div>
           </div>
 
@@ -342,8 +406,8 @@ const TrackingScriptGenerator = ({ website }: TrackingScriptGeneratorProps) => {
           <Alert className="border-blue-200 bg-blue-50">
             <Eye className="h-4 w-4 text-blue-600" />
             <AlertDescription>
-              <strong>Testing:</strong> After installing the script, visit your website and then check your dashboard here. 
-              You should see visitor data appearing within a few seconds.
+              <strong>🧪 Testing:</strong> After installing the script, visit your website and then refresh this dashboard. 
+              You should see visitor data appearing in real-time within a few seconds!
             </AlertDescription>
           </Alert>
         </CardContent>

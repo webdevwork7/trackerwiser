@@ -167,6 +167,38 @@ const WebsiteManager = () => {
 
   return (
     <div className="space-y-6">
+      {/* Quick Guide */}
+      <Card className="bg-gradient-to-r from-sky-50 to-teal-50 border-sky-200">
+        <CardHeader>
+          <CardTitle className="text-slate-900 flex items-center">
+            <Zap className="w-6 h-6 mr-2 text-sky-500" />
+            🚀 Quick Start Guide
+          </CardTitle>
+          <CardDescription>
+            Get your website tracking in 3 simple steps
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-white rounded-lg border">
+              <div className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm mx-auto mb-2">1</div>
+              <h3 className="font-semibold text-slate-900 mb-1">Add Website</h3>
+              <p className="text-sm text-slate-600">Enter your website name and domain below</p>
+            </div>
+            <div className="text-center p-4 bg-white rounded-lg border">
+              <div className="bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm mx-auto mb-2">2</div>
+              <h3 className="font-semibold text-slate-900 mb-1">Get Tracking Code</h3>
+              <p className="text-sm text-slate-600">Click on "Tracking Code" tab to get your script</p>
+            </div>
+            <div className="text-center p-4 bg-white rounded-lg border">
+              <div className="bg-purple-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm mx-auto mb-2">3</div>
+              <h3 className="font-semibold text-slate-900 mb-1">Paste & Go Live</h3>
+              <p className="text-sm text-slate-600">Copy script to your website's &lt;head&gt; section</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="bg-white/80 border-sky-100">
         <CardHeader>
           <CardTitle className="text-slate-900 flex items-center">
@@ -190,7 +222,7 @@ const WebsiteManager = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="website-domain">Domain</Label>
+                <Label htmlFor="website-domain">Domain (without https://)</Label>
                 <Input
                   id="website-domain"
                   placeholder="example.com"
@@ -220,7 +252,7 @@ const WebsiteManager = () => {
           <TabsList className="bg-white/80 border border-slate-200">
             <TabsTrigger value="websites">My Websites</TabsTrigger>
             <TabsTrigger value="tracking" disabled={!selectedWebsite}>
-              Tracking Code
+              📋 Get Tracking Code
             </TabsTrigger>
           </TabsList>
 
@@ -293,10 +325,10 @@ const WebsiteManager = () => {
             </div>
             
             {selectedWebsite && (
-              <Alert>
-                <Code className="h-4 w-4" />
+              <Alert className="border-blue-200 bg-blue-50">
+                <Code className="h-4 w-4 text-blue-600" />
                 <AlertDescription>
-                  <strong>Selected:</strong> {selectedWebsite.name} - Click on the "Tracking Code" tab to get your implementation code.
+                  <strong>✅ Selected:</strong> {selectedWebsite.name} - Click on the "📋 Get Tracking Code" tab above to get your complete installation script.
                 </AlertDescription>
               </Alert>
             )}
