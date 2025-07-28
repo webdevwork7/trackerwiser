@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -81,6 +80,8 @@ const TrackingScriptGenerator: React.FC<TrackingScriptGeneratorProps> = ({
       data: eventData || {}
     };
     
+    console.log('TrackWiser: Sending event', eventType, data);
+    
     // Use fetch to send data
     fetch(apiUrl, {
       method: 'POST',
@@ -89,10 +90,12 @@ const TrackingScriptGenerator: React.FC<TrackingScriptGeneratorProps> = ({
       },
       body: JSON.stringify(data)
     }).then(function(response) {
-      if (response.ok) {
-        console.log('TrackWiser: Event sent successfully');
+      return response.json();
+    }).then(function(result) {
+      if (result.success) {
+        console.log('TrackWiser: Event sent successfully', result);
       } else {
-        console.error('TrackWiser: Failed to send event');
+        console.error('TrackWiser: Failed to send event', result);
       }
     }).catch(function(error) {
       console.error('TrackWiser: Error sending event:', error);

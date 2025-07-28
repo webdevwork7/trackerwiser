@@ -1,1 +1,5 @@
+
 project_id = "ltluebewuhheisbbjcss"
+
+[functions.track-event]
+verify_jwt = false

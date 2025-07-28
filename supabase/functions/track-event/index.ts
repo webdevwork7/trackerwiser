@@ -9,17 +9,31 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    console.log('Track event function called with method:', req.method)
+    
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { tracking_code, event_type, visitor_id, session_id, page_url, referrer, user_agent, data } = await req.json()
+    const requestData = await req.json()
+    console.log('Request data:', requestData)
+    
+    const { tracking_code, event_type, visitor_id, session_id, page_url, referrer, user_agent, data } = requestData
+
+    if (!tracking_code) {
+      console.error('Missing tracking code')
+      return new Response(JSON.stringify({ error: 'Missing tracking code' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
     // Get website by tracking code
     const { data: website, error: websiteError } = await supabase
@@ -29,7 +43,19 @@ serve(async (req) => {
       .single()
 
     if (websiteError || !website) {
+      console.error('Website not found for tracking code:', tracking_code, websiteError)
       return new Response(JSON.stringify({ error: 'Invalid tracking code' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    console.log('Website found:', website.name)
+
+    // Check if website is active
+    if (!website.is_active) {
+      console.log('Website is not active')
+      return new Response(JSON.stringify({ error: 'Website tracking is disabled' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
@@ -50,6 +76,7 @@ serve(async (req) => {
     ]
 
     const isBot = botPatterns.some(pattern => pattern.test(user_agent || ''))
+    console.log('Bot detection result:', isBot)
 
     // Parse user agent for device info
     const isMobile = /mobile|android|iphone|ipad|tablet/i.test(user_agent || '')
@@ -87,6 +114,7 @@ serve(async (req) => {
 
     // If it's a bot, record the detection
     if (isBot) {
+      console.log('Bot detected, recording detection')
       await supabase
         .from('bot_detections')
         .insert({
@@ -107,6 +135,7 @@ serve(async (req) => {
     }
 
     // Insert analytics event
+    console.log('Inserting analytics event for website:', website.name)
     const { error: insertError } = await supabase
       .from('analytics_events')
       .insert({
@@ -134,6 +163,7 @@ serve(async (req) => {
       })
     }
 
+    console.log('Event inserted successfully')
     return new Response(JSON.stringify({ 
       success: true, 
       blocked: false,
@@ -147,7 +177,7 @@ serve(async (req) => {
     })
 
   } catch (error) {
-    console.error('Error:', error)
+    console.error('Error in track-event function:', error)
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
