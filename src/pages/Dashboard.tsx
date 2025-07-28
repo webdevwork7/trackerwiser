@@ -20,14 +20,38 @@ import {
   Settings,
   Plus
 } from 'lucide-react';
-import LiveAnalytics from '@/components/LiveAnalytics';
+import DynamicLiveAnalytics from '@/components/DynamicLiveAnalytics';
 import BotDetection from '@/components/BotDetection';
 import CloakingEngine from '@/components/CloakingEngine';
 import TrackingSetup from '@/components/TrackingSetup';
+import AdminPanel from '@/components/AdminPanel';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Dashboard = () => {
   const [liveVisitors, setLiveVisitors] = useState(247);
   const [botsBlocked, setBotsBlocked] = useState(1432);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const { user } = useAuth();
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (user) {
+        try {
+          const { data } = await supabase
+            .from('admin_users')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+          setIsAdmin(!!data);
+        } catch (error) {
+          setIsAdmin(false);
+        }
+      }
+    };
+    checkAdminStatus();
+  }, [user]);
 
   // Simulate real-time updates
   useEffect(() => {
@@ -50,7 +74,10 @@ const Dashboard = () => {
                 <Shield className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">TrackWiser Dashboard</h1>
+                <h1 className="text-2xl font-bold text-slate-900">
+                  TrackWiser Dashboard
+                  {isAdmin && <Badge className="ml-2 bg-red-100 text-red-800 border-red-200">Admin</Badge>}
+                </h1>
                 <p className="text-sm text-slate-600">Real-time analytics and bot protection</p>
               </div>
             </div>
@@ -142,10 +169,16 @@ const Dashboard = () => {
               <Settings className="w-4 h-4 mr-2" />
               Setup
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="admin" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
+                <Shield className="w-4 h-4 mr-2" />
+                Admin
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="analytics" className="space-y-6">
-            <LiveAnalytics />
+            <DynamicLiveAnalytics />
           </TabsContent>
 
           <TabsContent value="bot-detection" className="space-y-6">
@@ -159,6 +192,12 @@ const Dashboard = () => {
           <TabsContent value="setup" className="space-y-6">
             <TrackingSetup />
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="admin" className="space-y-6">
+              <AdminPanel />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>
