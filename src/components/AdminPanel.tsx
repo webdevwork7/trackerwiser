@@ -3,105 +3,113 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Shield, 
   Users, 
   Globe, 
   Activity, 
   Bot, 
-  Eye,
-  Settings,
   Search,
-  Filter,
-  BarChart3,
-  TrendingUp,
-  AlertTriangle
+  Trash2,
+  AlertTriangle,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface AdminStats {
-  totalUsers: number;
-  totalWebsites: number;
-  totalEvents: number;
-  totalBots: number;
-  activeUsers: number;
-  recentActivity: any[];
+interface AdminUser {
+  id: string;
+  email: string;
+  full_name: string;
+  created_at: string;
+}
+
+interface AdminWebsite {
+  id: string;
+  name: string;
+  domain: string;
+  tracking_code: string;
+  is_active: boolean;
+  created_at: string;
+  user_id: string;
+}
+
+interface AdminEvent {
+  id: string;
+  website_id: string;
+  event_type: string;
+  visitor_id: string;
+  ip_address: string;
+  is_bot: boolean;
+  created_at: string;
+}
+
+interface AdminBotDetection {
+  id: string;
+  website_id: string;
+  ip_address: string;
+  detection_reason: string;
+  is_blocked: boolean;
+  created_at: string;
 }
 
 const AdminPanel = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState<AdminStats>({
-    totalUsers: 0,
-    totalWebsites: 0,
-    totalEvents: 0,
-    totalBots: 0,
-    activeUsers: 0,
-    recentActivity: []
-  });
-  const [users, setUsers] = useState<any[]>([]);
-  const [websites, setWebsites] = useState<any[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
-  const [bots, setBots] = useState<any[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [websites, setWebsites] = useState<AdminWebsite[]>([]);
+  const [events, setEvents] = useState<AdminEvent[]>([]);
+  const [botDetections, setBotDetections] = useState<AdminBotDetection[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    if (user) {
-      fetchAdminData();
-    }
-  }, [user]);
+    fetchAllData();
+  }, []);
 
-  const fetchAdminData = async () => {
+  const fetchAllData = async () => {
     try {
-      setLoading(true);
-      
-      // Fetch users
-      const { data: usersData } = await supabase
+      // Fetch users from profiles table
+      const { data: usersData, error: usersError } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
-      
+
+      if (usersError) throw usersError;
+      setUsers(usersData || []);
+
       // Fetch websites
-      const { data: websitesData } = await supabase
+      const { data: websitesData, error: websitesError } = await supabase
         .from('websites')
         .select('*')
         .order('created_at', { ascending: false });
-      
-      // Fetch events
-      const { data: eventsData } = await supabase
+
+      if (websitesError) throw websitesError;
+      setWebsites(websitesData || []);
+
+      // Fetch analytics events
+      const { data: eventsData, error: eventsError } = await supabase
         .from('analytics_events')
-        .select('*, websites(name, domain)')
-        .order('created_at', { ascending: false })
-        .limit(100);
-      
-      // Fetch bots
-      const { data: botsData } = await supabase
-        .from('bot_detections')
-        .select('*, websites(name, domain)')
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
 
-      setUsers(usersData || []);
-      setWebsites(websitesData || []);
+      if (eventsError) throw eventsError;
       setEvents(eventsData || []);
-      setBots(botsData || []);
-      
-      // Calculate stats
-      const uniqueVisitors = new Set(eventsData?.map(e => e.visitor_id) || []).size;
-      const recentEvents = eventsData?.slice(0, 10) || [];
-      
-      setStats({
-        totalUsers: usersData?.length || 0,
-        totalWebsites: websitesData?.length || 0,
-        totalEvents: eventsData?.length || 0,
-        totalBots: botsData?.length || 0,
-        activeUsers: uniqueVisitors,
-        recentActivity: recentEvents
-      });
-      
+
+      // Fetch bot detections
+      const { data: botData, error: botError } = await supabase
+        .from('bot_detections')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (botError) throw botError;
+      setBotDetections(botData || []);
+
     } catch (error) {
       console.error('Error fetching admin data:', error);
     } finally {
@@ -109,250 +117,255 @@ const AdminPanel = () => {
     }
   };
 
+  const deleteWebsite = async (websiteId: string) => {
+    if (!confirm('Are you sure you want to delete this website?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('websites')
+        .delete()
+        .eq('id', websiteId);
+
+      if (error) throw error;
+      
+      setWebsites(websites.filter(w => w.id !== websiteId));
+    } catch (error) {
+      console.error('Error deleting website:', error);
+    }
+  };
+
   const filteredUsers = users.filter(user => 
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const filteredWebsites = websites.filter(website => 
-    website.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    website.domain?.toLowerCase().includes(searchTerm.toLowerCase())
+    website.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    website.domain.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <Card className="bg-white/80 border-sky-100">
+      {/* Admin Header */}
+      <Card className="bg-gradient-to-r from-red-50 to-pink-50 border-red-200">
         <CardHeader>
-          <CardTitle className="text-slate-900 flex items-center">
-            <Shield className="w-6 h-6 mr-2 text-sky-500" />
-            Admin Dashboard
+          <CardTitle className="text-red-900 flex items-center">
+            <Shield className="w-6 h-6 mr-2" />
+            Admin Panel - System Management
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-red-700">
             Manage users, websites, and monitor system activity
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-red-900">{users.length}</div>
+              <div className="text-red-700 text-sm">Total Users</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-red-900">{websites.length}</div>
+              <div className="text-red-700 text-sm">Total Websites</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-red-900">{events.length}</div>
+              <div className="text-red-700 text-sm">Recent Events</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-red-900">{botDetections.length}</div>
+              <div className="text-red-700 text-sm">Bot Detections</div>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
-      {/* Admin Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-white/80 border-sky-100">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600">Total Users</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.totalUsers}</p>
-              </div>
-              <Users className="w-8 h-8 text-sky-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/80 border-sky-100">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600">Total Websites</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.totalWebsites}</p>
-              </div>
-              <Globe className="w-8 h-8 text-teal-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/80 border-sky-100">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600">Total Events</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.totalEvents}</p>
-              </div>
-              <Activity className="w-8 h-8 text-lime-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/80 border-sky-100">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600">Bots Detected</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.totalBots}</p>
-              </div>
-              <Bot className="w-8 h-8 text-red-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Search */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Search className="w-5 h-5 mr-2" />
+            Search & Filter
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-2">
+            <Input
+              placeholder="Search users, websites, or domains..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
+            />
+            <Button variant="outline">
+              <Search className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Admin Tabs */}
       <Tabs defaultValue="users" className="space-y-6">
         <TabsList className="bg-white/80 border border-slate-200">
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="websites">Websites</TabsTrigger>
-          <TabsTrigger value="events">Events</TabsTrigger>
-          <TabsTrigger value="bots">Bot Detection</TabsTrigger>
+          <TabsTrigger value="users" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
+            <Users className="w-4 h-4 mr-2" />
+            Users ({users.length})
+          </TabsTrigger>
+          <TabsTrigger value="websites" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
+            <Globe className="w-4 h-4 mr-2" />
+            Websites ({websites.length})
+          </TabsTrigger>
+          <TabsTrigger value="events" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
+            <Activity className="w-4 h-4 mr-2" />
+            Events ({events.length})
+          </TabsTrigger>
+          <TabsTrigger value="bots" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
+            <Bot className="w-4 h-4 mr-2" />
+            Bot Detections ({botDetections.length})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">
-          <Card className="bg-white/80 border-sky-100">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>User Management</CardTitle>
-                <div className="flex items-center space-x-2">
-                  <Input
-                    placeholder="Search users..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-64"
-                  />
-                  <Button variant="outline" size="sm">
-                    <Search className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {filteredUsers.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-sky-500 text-white rounded-full flex items-center justify-center">
-                        {user.full_name?.charAt(0) || user.email?.charAt(0) || 'U'}
-                      </div>
-                      <div>
-                        <div className="font-medium text-slate-900">{user.full_name || 'Unknown'}</div>
-                        <div className="text-sm text-slate-500">{user.email}</div>
-                      </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredUsers.map((user) => (
+              <Card key={user.id} className="bg-white/80 border-slate-200">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{user.full_name || 'Unknown'}</CardTitle>
+                    <Badge variant="outline">User</Badge>
+                  </div>
+                  <CardDescription>{user.email}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="text-sm text-slate-600">
+                      <span className="font-medium">ID:</span> {user.id.slice(0, 8)}...
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge className="bg-green-100 text-green-800 border-green-200">
-                        Active
-                      </Badge>
-                      <div className="text-sm text-slate-500">
-                        {new Date(user.created_at).toLocaleDateString()}
-                      </div>
+                    <div className="text-sm text-slate-600">
+                      <span className="font-medium">Joined:</span> {new Date(user.created_at).toLocaleDateString()}
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
 
         <TabsContent value="websites" className="space-y-4">
-          <Card className="bg-white/80 border-sky-100">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Website Management</CardTitle>
-                <div className="flex items-center space-x-2">
-                  <Input
-                    placeholder="Search websites..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-64"
-                  />
-                  <Button variant="outline" size="sm">
-                    <Search className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {filteredWebsites.map((website) => (
-                  <div key={website.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Globe className="w-8 h-8 text-teal-500" />
-                      <div>
-                        <div className="font-medium text-slate-900">{website.name}</div>
-                        <div className="text-sm text-slate-500">{website.domain}</div>
-                        <div className="text-xs text-slate-400">Code: {website.tracking_code}</div>
-                      </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredWebsites.map((website) => (
+              <Card key={website.id} className="bg-white/80 border-slate-200">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{website.name}</CardTitle>
+                    <Badge className={website.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                      {website.is_active ? (
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                      ) : (
+                        <XCircle className="w-3 h-3 mr-1" />
+                      )}
+                      {website.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                  <CardDescription>{website.domain}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="text-sm text-slate-600">
+                      <span className="font-medium">Tracking Code:</span>
+                      <code className="ml-2 bg-slate-100 px-2 py-1 rounded text-xs">
+                        {website.tracking_code}
+                      </code>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge className={website.is_active ? "bg-green-100 text-green-800 border-green-200" : "bg-red-100 text-red-800 border-red-200"}>
-                        {website.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                      <div className="text-sm text-slate-500">
-                        {new Date(website.created_at).toLocaleDateString()}
-                      </div>
+                    <div className="text-sm text-slate-600">
+                      <span className="font-medium">Created:</span> {new Date(website.created_at).toLocaleDateString()}
+                    </div>
+                    <div className="flex space-x-2 mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => deleteWebsite(website.id)}
+                        className="text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete
+                      </Button>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
 
         <TabsContent value="events" className="space-y-4">
-          <Card className="bg-white/80 border-sky-100">
-            <CardHeader>
-              <CardTitle>Recent Events</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {events.slice(0, 20).map((event) => (
-                  <div key={event.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Eye className="w-6 h-6 text-sky-500" />
+          <div className="grid grid-cols-1 gap-4">
+            {events.map((event) => (
+              <Card key={event.id} className="bg-white/80 border-slate-200">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-sky-100 rounded-full flex items-center justify-center">
+                        <Activity className="w-5 h-5 text-sky-600" />
+                      </div>
                       <div>
-                        <div className="font-medium text-slate-900">{event.event_type}</div>
-                        <div className="text-sm text-slate-500">{event.page_url}</div>
-                        <div className="text-xs text-slate-400">
-                          {event.websites?.name} • {event.visitor_id}
+                        <div className="font-medium">{event.event_type}</div>
+                        <div className="text-sm text-slate-600">
+                          Visitor: {event.visitor_id.slice(0, 8)}... | IP: {event.ip_address}
                         </div>
                       </div>
                     </div>
-                    <div className="text-sm text-slate-500">
-                      {new Date(event.created_at).toLocaleString()}
+                    <div className="text-right">
+                      <Badge className={event.is_bot ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}>
+                        {event.is_bot ? 'Bot' : 'Human'}
+                      </Badge>
+                      <div className="text-sm text-slate-600 mt-1">
+                        {new Date(event.created_at).toLocaleString()}
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
 
         <TabsContent value="bots" className="space-y-4">
-          <Card className="bg-white/80 border-sky-100">
-            <CardHeader>
-              <CardTitle>Bot Detections</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {bots.slice(0, 20).map((bot) => (
-                  <div key={bot.id} className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200">
-                    <div className="flex items-center space-x-3">
-                      <Bot className="w-6 h-6 text-red-500" />
+          <div className="grid grid-cols-1 gap-4">
+            {botDetections.map((bot) => (
+              <Card key={bot.id} className="bg-white/80 border-red-200">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                        <Bot className="w-5 h-5 text-red-600" />
+                      </div>
                       <div>
-                        <div className="font-medium text-slate-900">{bot.detection_reason}</div>
-                        <div className="text-sm text-slate-500">{bot.ip_address}</div>
-                        <div className="text-xs text-slate-400">
-                          {bot.websites?.name} • {bot.user_agent?.substring(0, 50)}...
+                        <div className="font-medium text-red-900">{bot.detection_reason}</div>
+                        <div className="text-sm text-slate-600">
+                          IP: {bot.ip_address}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge className="bg-red-100 text-red-800 border-red-200">
+                    <div className="text-right">
+                      <Badge className={bot.is_blocked ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}>
                         {bot.is_blocked ? 'Blocked' : 'Detected'}
                       </Badge>
-                      <div className="text-sm text-slate-500">
+                      <div className="text-sm text-slate-600 mt-1">
                         {new Date(bot.created_at).toLocaleString()}
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
       </Tabs>
     </div>

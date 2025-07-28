@@ -336,7 +336,7 @@ const WebsiteManager = () => {
 
           <TabsContent value="tracking">
             {selectedWebsite ? (
-              <TrackingScriptGenerator website={selectedWebsite} />
+              <TrackingScriptGenerator websiteId={selectedWebsite.id} />
             ) : (
               <Alert>
                 <Zap className="h-4 w-4" />

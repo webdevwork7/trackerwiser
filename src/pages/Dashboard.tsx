@@ -32,23 +32,34 @@ const Dashboard = () => {
   const [liveVisitors, setLiveVisitors] = useState(247);
   const [botsBlocked, setBotsBlocked] = useState(1432);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(true);
   const { user } = useAuth();
 
   // Check if user is admin
   useEffect(() => {
     const checkAdminStatus = async () => {
+      if (user?.email === 'admin@gmail.com') {
+        setIsAdmin(true);
+        setAdminLoading(false);
+        return;
+      }
+      
       if (user) {
         try {
-          const { data } = await supabase
-            .from('admin_users')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
-          setIsAdmin(!!data);
+          // Use RPC call to check admin status
+          const { data, error } = await supabase.rpc('is_admin', { user_id: user.id });
+          if (error) {
+            console.error('Error checking admin status:', error);
+            setIsAdmin(false);
+          } else {
+            setIsAdmin(data || false);
+          }
         } catch (error) {
+          console.error('Error checking admin status:', error);
           setIsAdmin(false);
         }
       }
+      setAdminLoading(false);
     };
     checkAdminStatus();
   }, [user]);
@@ -62,6 +73,14 @@ const Dashboard = () => {
     
     return () => clearInterval(interval);
   }, []);
+
+  if (adminLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-teal-50">
