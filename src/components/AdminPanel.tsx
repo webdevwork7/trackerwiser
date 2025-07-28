@@ -90,7 +90,7 @@ const AdminPanel = () => {
       if (websitesError) throw websitesError;
       setWebsites(websitesData || []);
 
-      // Fetch analytics events with proper type casting
+      // Fetch analytics events
       const { data: eventsData, error: eventsError } = await supabase
         .from('analytics_events')
         .select('*')
@@ -112,7 +112,7 @@ const AdminPanel = () => {
       
       setEvents(mappedEvents);
 
-      // Fetch bot detections with proper type casting
+      // Fetch bot detections
       const { data: botData, error: botError } = await supabase
         .from('bot_detections')
         .select('*')

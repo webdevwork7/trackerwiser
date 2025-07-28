@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from '@/contexts/AuthContext';
 import TrackingScriptGenerator from './TrackingScriptGenerator';
 
 interface Website {
@@ -37,7 +39,8 @@ const WebsiteManager = () => {
   const [totalVisitors, setTotalVisitors] = useState(0);
   const [todayVisitors, setTodayVisitors] = useState(0);
   const [showGuide, setShowGuide] = useState<string | null>(null);
-  const { toast } = useToast()
+  const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchWebsites();
@@ -75,6 +78,15 @@ const WebsiteManager = () => {
   };
 
   const addWebsite = async () => {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Authentication required",
+        description: "Please sign in to add a website.",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const trackingCode = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -84,7 +96,7 @@ const WebsiteManager = () => {
           name: newWebsite.name, 
           domain: newWebsite.domain,
           tracking_code: trackingCode,
-          user_id: supabase.auth.user()?.id
+          user_id: user.id
         }]);
 
       if (error) {
@@ -380,6 +392,7 @@ const WebsiteManager = () => {
                       
                       {showGuide === website.id && (
                         <TrackingScriptGenerator
+                          websiteId={website.id}
                           trackingCode={website.tracking_code}
                           domain={website.domain}
                           websiteName={website.name}

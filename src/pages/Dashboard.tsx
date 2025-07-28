@@ -38,34 +38,37 @@ const Dashboard = () => {
   // Check if user is admin
   useEffect(() => {
     const checkAdminStatus = async () => {
-      if (user?.email === 'admin@gmail.com') {
+      if (!user) {
+        setIsAdmin(false);
+        setAdminLoading(false);
+        return;
+      }
+
+      // Check if user is the hardcoded admin
+      if (user.email === 'admin@gmail.com') {
         setIsAdmin(true);
         setAdminLoading(false);
         return;
       }
-      
-      if (user) {
-        try {
-          // Check if user exists in admin_users table
-          const { data, error } = await supabase
-            .from('admin_users')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
-          
-          if (error) {
-            console.error('Error checking admin status:', error);
-            setIsAdmin(false);
-          } else {
-            setIsAdmin(!!data);
-          }
-        } catch (error) {
+
+      // Check if user is in admin_users table using RPC
+      try {
+        const { data, error } = await supabase.rpc('is_admin', { user_id: user.id });
+        
+        if (error) {
           console.error('Error checking admin status:', error);
           setIsAdmin(false);
+        } else {
+          setIsAdmin(data || false);
         }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        setIsAdmin(false);
       }
+      
       setAdminLoading(false);
     };
+
     checkAdminStatus();
   }, [user]);
 
