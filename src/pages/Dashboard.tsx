@@ -46,13 +46,18 @@ const Dashboard = () => {
       
       if (user) {
         try {
-          // Use RPC call to check admin status
-          const { data, error } = await supabase.rpc('is_admin', { user_id: user.id });
+          // Check if user exists in admin_users table
+          const { data, error } = await supabase
+            .from('admin_users')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+          
           if (error) {
             console.error('Error checking admin status:', error);
             setIsAdmin(false);
           } else {
-            setIsAdmin(data || false);
+            setIsAdmin(!!data);
           }
         } catch (error) {
           console.error('Error checking admin status:', error);

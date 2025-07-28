@@ -43,7 +43,7 @@ interface AdminEvent {
   website_id: string;
   event_type: string;
   visitor_id: string;
-  ip_address: string;
+  ip_address: string | null;
   is_bot: boolean;
   created_at: string;
 }
@@ -51,7 +51,7 @@ interface AdminEvent {
 interface AdminBotDetection {
   id: string;
   website_id: string;
-  ip_address: string;
+  ip_address: string | null;
   detection_reason: string;
   is_blocked: boolean;
   created_at: string;
@@ -90,7 +90,7 @@ const AdminPanel = () => {
       if (websitesError) throw websitesError;
       setWebsites(websitesData || []);
 
-      // Fetch analytics events
+      // Fetch analytics events with proper type casting
       const { data: eventsData, error: eventsError } = await supabase
         .from('analytics_events')
         .select('*')
@@ -98,9 +98,21 @@ const AdminPanel = () => {
         .limit(100);
 
       if (eventsError) throw eventsError;
-      setEvents(eventsData || []);
+      
+      // Map the data to match our interface types
+      const mappedEvents = (eventsData || []).map(event => ({
+        id: event.id,
+        website_id: event.website_id,
+        event_type: event.event_type,
+        visitor_id: event.visitor_id,
+        ip_address: event.ip_address as string | null,
+        is_bot: event.is_bot,
+        created_at: event.created_at
+      }));
+      
+      setEvents(mappedEvents);
 
-      // Fetch bot detections
+      // Fetch bot detections with proper type casting
       const { data: botData, error: botError } = await supabase
         .from('bot_detections')
         .select('*')
@@ -108,7 +120,18 @@ const AdminPanel = () => {
         .limit(100);
 
       if (botError) throw botError;
-      setBotDetections(botData || []);
+      
+      // Map the data to match our interface types
+      const mappedBotDetections = (botData || []).map(bot => ({
+        id: bot.id,
+        website_id: bot.website_id,
+        ip_address: bot.ip_address as string | null,
+        detection_reason: bot.detection_reason,
+        is_blocked: bot.is_blocked,
+        created_at: bot.created_at
+      }));
+      
+      setBotDetections(mappedBotDetections);
 
     } catch (error) {
       console.error('Error fetching admin data:', error);
@@ -317,7 +340,7 @@ const AdminPanel = () => {
                       <div>
                         <div className="font-medium">{event.event_type}</div>
                         <div className="text-sm text-slate-600">
-                          Visitor: {event.visitor_id.slice(0, 8)}... | IP: {event.ip_address}
+                          Visitor: {event.visitor_id.slice(0, 8)}... | IP: {event.ip_address || 'N/A'}
                         </div>
                       </div>
                     </div>
@@ -349,7 +372,7 @@ const AdminPanel = () => {
                       <div>
                         <div className="font-medium text-red-900">{bot.detection_reason}</div>
                         <div className="text-sm text-slate-600">
-                          IP: {bot.ip_address}
+                          IP: {bot.ip_address || 'N/A'}
                         </div>
                       </div>
                     </div>
