@@ -12,17 +12,17 @@ import {
   Shield,
   RefreshCw,
   LogOut,
+  Settings,
   BarChart3,
   Bot,
   EyeOff,
   Globe,
-  Settings,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import AdminStats from "./admin/AdminStats";
 import AdminAnalytics from "./admin/AdminAnalytics";
-import AdminBotManagement from "./admin/AdminBotManagement";
+import BotDetection from "./BotDetection";
 import AdminCloaking from "./admin/AdminCloaking";
 import AdminWebsites from "./admin/AdminWebsites";
 import AdminSettings from "./admin/AdminSettings";
@@ -168,66 +168,72 @@ const AdminPanel = () => {
         </CardContent>
       </Card>
 
-      {/* Admin Tabs */}
-      <Tabs defaultValue="analytics" className="space-y-6">
-        <TabsList className="bg-white/80 border border-slate-200">
-          <TabsTrigger
-            value="analytics"
-            className="data-[state=active]:bg-red-500 data-[state=active]:text-white"
-          >
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Analytics
-          </TabsTrigger>
-          <TabsTrigger
-            value="bot-management"
-            className="data-[state=active]:bg-red-500 data-[state=active]:text-white"
-          >
-            <Bot className="w-4 h-4 mr-2" />
-            Bot Management
-          </TabsTrigger>
-          <TabsTrigger
-            value="cloaking"
-            className="data-[state=active]:bg-red-500 data-[state=active]:text-white"
-          >
-            <EyeOff className="w-4 h-4 mr-2" />
-            Cloaking
-          </TabsTrigger>
-          <TabsTrigger
-            value="websites"
-            className="data-[state=active]:bg-red-500 data-[state=active]:text-white"
-          >
-            <Globe className="w-4 h-4 mr-2" />
-            Website Management
-          </TabsTrigger>
-          <TabsTrigger
-            value="admin"
-            className="data-[state=active]:bg-red-500 data-[state=active]:text-white"
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            Admin Settings
-          </TabsTrigger>
-        </TabsList>
+      {/* Admin Tab Only - with inner tabs */}
+      <Card className="bg-white border border-slate-200">
+        <CardContent className="p-6">
+          <Tabs defaultValue="analytics" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-5 bg-slate-100">
+              <TabsTrigger
+                value="analytics"
+                className="data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+              >
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Analytics
+              </TabsTrigger>
+              <TabsTrigger
+                value="bot-management"
+                className="data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+              >
+                <Bot className="w-4 h-4 mr-2" />
+                Bot Management
+              </TabsTrigger>
+              <TabsTrigger
+                value="cloaking"
+                className="data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+              >
+                <EyeOff className="w-4 h-4 mr-2" />
+                Cloaking
+              </TabsTrigger>
+              <TabsTrigger
+                value="websites"
+                className="data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+              >
+                <Globe className="w-4 h-4 mr-2" />
+                Website Management
+              </TabsTrigger>
+              <TabsTrigger
+                value="admin"
+                className="data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Admin Settings
+              </TabsTrigger>
+            </TabsList>
 
-        <TabsContent value="analytics">
-          <AdminAnalytics />
-        </TabsContent>
+            <div className="mt-6">
+              <TabsContent value="analytics" className="space-y-4">
+                <AdminAnalytics />
+              </TabsContent>
 
-        <TabsContent value="bot-management">
-          <AdminBotManagement stats={stats} />
-        </TabsContent>
+              <TabsContent value="bot-management" className="space-y-4">
+                <BotDetection />
+              </TabsContent>
 
-        <TabsContent value="cloaking">
-          <AdminCloaking />
-        </TabsContent>
+              <TabsContent value="cloaking" className="space-y-4">
+                <AdminCloaking />
+              </TabsContent>
 
-        <TabsContent value="websites">
-          <AdminWebsites />
-        </TabsContent>
+              <TabsContent value="websites" className="space-y-4">
+                <AdminWebsites />
+              </TabsContent>
 
-        <TabsContent value="admin">
-          <AdminSettings stats={stats} />
-        </TabsContent>
-      </Tabs>
+              <TabsContent value="admin" className="space-y-4">
+                <AdminSettings stats={stats} />
+              </TabsContent>
+            </div>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 };
