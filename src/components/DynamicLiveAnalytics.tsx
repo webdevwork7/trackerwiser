@@ -33,6 +33,7 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserData } from "@/hooks/use-user-data";
 import {
   Globe,
   Smartphone,
@@ -53,12 +54,6 @@ import {
   Target,
   BarChart3,
 } from "lucide-react";
-
-interface Website {
-  id: string;
-  name: string;
-  domain: string;
-}
 
 interface AnalyticsData {
   // Event counts
@@ -142,24 +137,24 @@ interface AnalyticsData {
 const DynamicLiveAnalytics = () => {
   const [selectedWebsite, setSelectedWebsite] = useState<string>("");
   const [selectedTimeRange, setSelectedTimeRange] = useState("24h");
-  const [websites, setWebsites] = useState<Website[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [realTimeUpdates, setRealTimeUpdates] = useState(0);
   const { user } = useAuth();
+  const { websites, analyticsEvents, botDetections } = useUserData();
 
   useEffect(() => {
-    if (user) {
-      fetchWebsites();
+    if (websites.length > 0 && !selectedWebsite) {
+      setSelectedWebsite(websites[0].id);
     }
-  }, [user]);
+  }, [websites, selectedWebsite]);
 
   useEffect(() => {
     if (selectedWebsite) {
-      fetchAnalytics();
+      processAnalyticsData();
       setupRealTimeSubscription();
     }
-  }, [selectedWebsite, selectedTimeRange]);
+  }, [selectedWebsite, selectedTimeRange, analyticsEvents, botDetections]);
 
   // Real-time counter effect
   useEffect(() => {
@@ -181,7 +176,7 @@ const DynamicLiveAnalytics = () => {
           filter: `website_id=eq.${selectedWebsite}`,
         },
         () => {
-          fetchAnalytics();
+          // Data will be updated through the useUserData hook
         }
       )
       .on(
@@ -193,7 +188,7 @@ const DynamicLiveAnalytics = () => {
           filter: `website_id=eq.${selectedWebsite}`,
         },
         () => {
-          fetchAnalytics();
+          // Data will be updated through the useUserData hook
         }
       )
       .subscribe();
@@ -203,75 +198,54 @@ const DynamicLiveAnalytics = () => {
     };
   };
 
-  const fetchWebsites = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("websites")
-        .select("id, name, domain")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setWebsites(data || []);
-      if (data && data.length > 0) {
-        setSelectedWebsite(data[0].id);
-      }
-    } catch (error) {
-      console.error("Error fetching websites:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAnalytics = async () => {
+  const processAnalyticsData = () => {
     if (!selectedWebsite) return;
 
-    try {
-      const timeFilter = getTimeFilter(selectedTimeRange);
+    const timeFilter = getTimeFilter(selectedTimeRange);
 
-      // Fetch all analytics events
-      const { data: events, error: eventsError } = await supabase
-        .from("analytics_events")
-        .select("*")
-        .eq("website_id", selectedWebsite)
-        .gte("created_at", timeFilter)
-        .order("created_at", { ascending: false });
+    // Filter events for selected website and time range
+    const filteredEvents = analyticsEvents.filter(
+      (event) =>
+        event.website_id === selectedWebsite &&
+        new Date(event.created_at) >= timeFilter
+    );
 
-      if (eventsError) throw eventsError;
+    // Filter bot detections for selected website and time range
+    const filteredBots = botDetections.filter(
+      (bot) =>
+        bot.website_id === selectedWebsite &&
+        new Date(bot.created_at) >= timeFilter
+    );
 
-      // Fetch bot detections
-      const { data: bots, error: botsError } = await supabase
-        .from("bot_detections")
-        .select("*")
-        .eq("website_id", selectedWebsite)
-        .gte("created_at", timeFilter);
-
-      if (botsError) throw botsError;
-
-      // Process the data
-      const processedData = processAnalyticsData(events || [], bots || []);
-      setAnalytics(processedData);
-    } catch (error) {
-      console.error("Error fetching analytics:", error);
-    }
+    // Process the data
+    const processedData = processAnalyticsDataHelper(
+      filteredEvents,
+      filteredBots
+    );
+    setAnalytics(processedData);
+    setLoading(false);
   };
 
   const getTimeFilter = (range: string) => {
     const now = new Date();
     switch (range) {
       case "1h":
-        return new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+        return new Date(now.getTime() - 60 * 60 * 1000);
       case "24h":
-        return new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+        return new Date(now.getTime() - 24 * 60 * 60 * 1000);
       case "7d":
-        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       case "30d":
-        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       default:
-        return new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+        return new Date(now.getTime() - 24 * 60 * 60 * 1000);
     }
   };
 
-  const processAnalyticsData = (events: any[], bots: any[]): AnalyticsData => {
+  const processAnalyticsDataHelper = (
+    events: any[],
+    bots: any[]
+  ): AnalyticsData => {
     // Event type counts
     const eventCounts = events.reduce((acc, event) => {
       acc[event.event_type] = (acc[event.event_type] || 0) + 1;
