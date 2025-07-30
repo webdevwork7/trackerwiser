@@ -43,6 +43,7 @@ import OverviewQuickActions from "./overview/OverviewQuickActions";
 import OverviewRecentActivity from "./overview/OverviewRecentActivity";
 import OverviewPerformance from "./overview/OverviewPerformance";
 import OverviewInsights from "./overview/OverviewInsights";
+import OverviewLiveVisitors from "./overview/OverviewLiveVisitors";
 
 const DynamicDashboard = () => {
   const { user, signOut } = useAuth();
@@ -180,6 +181,7 @@ const DynamicDashboard = () => {
           <TabsContent value="overview" className="space-y-6">
             <OverviewHeader user={user} />
             <OverviewStats stats={stats} />
+            <OverviewLiveVisitors />
             <OverviewQuickActions setActiveTab={setActiveTab} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <OverviewRecentActivity stats={stats} />
