@@ -30,6 +30,7 @@ import {
   Star,
   Award,
   Sparkles,
+  MapPin,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserData } from "@/hooks/use-user-data";
@@ -37,6 +38,7 @@ import DynamicLiveAnalytics from "./DynamicLiveAnalytics";
 import WebsiteManager from "./WebsiteManager";
 import TrackingSetup from "./TrackingSetup";
 import TrackingStatus from "./TrackingStatus";
+import LocationAnalytics from "./LocationAnalytics";
 import OverviewHeader from "./overview/OverviewHeader";
 import OverviewStats from "./overview/OverviewStats";
 import OverviewQuickActions from "./overview/OverviewQuickActions";
@@ -176,6 +178,13 @@ const DynamicDashboard = () => {
               <Shield className="w-4 h-4" />
               <span>Status</span>
             </TabsTrigger>
+            <TabsTrigger
+              value="location"
+              className="flex items-center space-x-2"
+            >
+              <MapPin className="w-4 h-4" />
+              <span>Location</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -204,6 +213,10 @@ const DynamicDashboard = () => {
 
           <TabsContent value="status">
             <TrackingStatus />
+          </TabsContent>
+
+          <TabsContent value="location">
+            <LocationAnalytics />
           </TabsContent>
         </Tabs>
       </main>

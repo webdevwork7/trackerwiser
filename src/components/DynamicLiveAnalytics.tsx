@@ -915,20 +915,53 @@ const DynamicLiveAnalytics = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={analytics?.browserData || []} layout="horizontal">
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis type="number" stroke="#64748b" />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  stroke="#64748b"
-                  width={80}
-                />
-                <Tooltip />
-                <Bar dataKey="value" fill="#0EA5E9" />
-              </BarChart>
-            </ResponsiveContainer>
+            {/* Simple Browser Distribution - Easy to understand */}
+            <div className="space-y-4">
+              {analytics?.browserData && analytics.browserData.length > 0 ? (
+                analytics.browserData.map((browser, index) => (
+                  <div key={browser.name} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700">
+                        {browser.name}
+                      </span>
+                      <span className="text-sm font-bold text-slate-900">
+                        {browser.value}% ({browser.count} users)
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-3">
+                      <div
+                        className="bg-gradient-to-r from-sky-500 to-teal-500 h-3 rounded-full transition-all duration-300"
+                        style={{ width: `${browser.value}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-slate-500">
+                  No browser data available
+                </div>
+              )}
+            </div>
+
+            {/* Browser Stats Summary */}
+            {analytics?.browserData && analytics.browserData.length > 0 && (
+              <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+                {analytics.browserData.slice(0, 4).map((browser, index) => (
+                  <div
+                    key={browser.name}
+                    className="text-center p-3 bg-slate-50 rounded-lg border border-slate-200"
+                  >
+                    <div className="text-lg font-bold text-slate-900">
+                      {browser.value}%
+                    </div>
+                    <div className="text-sm text-slate-600">{browser.name}</div>
+                    <div className="text-xs text-slate-500">
+                      {browser.count} users
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -1009,43 +1042,112 @@ const DynamicLiveAnalytics = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Enhanced Geographic Distribution Chart */}
             <div className="space-y-4">
-              {analytics?.geoData.map((geo) => (
-                <div
-                  key={geo.country}
-                  className="flex items-center justify-between"
-                >
-                  <div className="flex items-center space-x-3">
-                    <span className="text-2xl">{geo.flag}</span>
-                    <div>
-                      <div className="font-medium text-slate-900">
-                        {geo.country}
+              {analytics?.geoData && analytics.geoData.length > 0 ? (
+                analytics.geoData.map((geo, index) => (
+                  <div key={geo.country} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">{geo.flag}</span>
+                        <div>
+                          <div className="font-medium text-slate-900">
+                            {geo.country}
+                          </div>
+                          <div className="text-sm text-slate-500">
+                            {geo.visitors} visitors
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-sm text-slate-500">
-                        {geo.visitors} visitors
+                      <div className="flex items-center space-x-3">
+                        <span className="text-sm font-bold text-slate-900">
+                          {geo.events} events
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          {Math.round(
+                            (geo.events /
+                              analytics.geoData.reduce(
+                                (sum, g) => sum + g.events,
+                                0
+                              )) *
+                              100
+                          )}
+                          %
+                        </span>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-24 bg-slate-200 rounded-full h-2">
+                    <div className="w-full bg-slate-200 rounded-full h-4">
                       <div
-                        className="bg-gradient-to-r from-sky-500 to-teal-500 h-2 rounded-full"
+                        className="bg-gradient-to-r from-teal-500 to-emerald-500 h-4 rounded-full transition-all duration-300 shadow-sm"
                         style={{
-                          width: `${Math.min((geo.events / 1000) * 100, 100)}%`,
+                          width: `${Math.min(
+                            (geo.events /
+                              Math.max(
+                                ...analytics.geoData.map((g) => g.events)
+                              )) *
+                              100,
+                            100
+                          )}%`,
                         }}
                       ></div>
                     </div>
-                    <span className="text-sm text-slate-600 w-12 text-right">
-                      {geo.events}
-                    </span>
                   </div>
-                </div>
-              )) || (
+                ))
+              ) : (
                 <div className="text-center text-slate-500 py-8">
                   No geographic data available
                 </div>
               )}
             </div>
+
+            {/* Geographic Stats Summary */}
+            {analytics?.geoData && analytics.geoData.length > 0 && (
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {analytics.geoData.slice(0, 6).map((geo, index) => (
+                  <div
+                    key={geo.country}
+                    className="p-4 bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg border border-slate-200 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xl">{geo.flag}</span>
+                        <span className="font-semibold text-slate-900 text-sm">
+                          {geo.country}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-slate-900">
+                          {geo.events}
+                        </div>
+                        <div className="text-xs text-slate-500">events</div>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-600">Visitors</span>
+                        <span className="font-medium text-slate-900">
+                          {geo.visitors}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-600">Share</span>
+                        <span className="font-medium text-slate-900">
+                          {Math.round(
+                            (geo.events /
+                              analytics.geoData.reduce(
+                                (sum, g) => sum + g.events,
+                                0
+                              )) *
+                              100
+                          )}
+                          %
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

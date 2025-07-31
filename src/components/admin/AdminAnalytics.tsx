@@ -352,20 +352,54 @@ const AdminAnalytics = () => {
                 <h3 className="text-lg font-semibold mb-4">
                   Browser Distribution
                 </h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={analytics.browserData} layout="horizontal">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis type="number" stroke="#64748b" />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      stroke="#64748b"
-                      width={80}
-                    />
-                    <Tooltip />
-                    <Bar dataKey="value" fill="#0EA5E9" />
-                  </BarChart>
-                </ResponsiveContainer>
+                
+                {/* Simple Browser Distribution - Easy to understand */}
+                <div className="space-y-4">
+                  {analytics.browserData && analytics.browserData.length > 0 ? (
+                    analytics.browserData.map((browser, index) => (
+                      <div key={browser.name} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-700">
+                            {browser.name}
+                          </span>
+                          <span className="text-sm font-bold text-slate-900">
+                            {browser.value}% ({browser.count} users)
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-200 rounded-full h-3">
+                          <div
+                            className="bg-gradient-to-r from-sky-500 to-teal-500 h-3 rounded-full transition-all duration-300"
+                            style={{ width: `${browser.value}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-slate-500">
+                      No browser data available
+                    </div>
+                  )}
+                </div>
+
+                {/* Browser Stats Summary */}
+                {analytics.browserData && analytics.browserData.length > 0 && (
+                  <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {analytics.browserData.slice(0, 4).map((browser, index) => (
+                      <div
+                        key={browser.name}
+                        className="text-center p-3 bg-slate-50 rounded-lg border border-slate-200"
+                      >
+                        <div className="text-lg font-bold text-slate-900">
+                          {browser.value}%
+                        </div>
+                        <div className="text-sm text-slate-600">{browser.name}</div>
+                        <div className="text-xs text-slate-500">
+                          {browser.count} users
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
