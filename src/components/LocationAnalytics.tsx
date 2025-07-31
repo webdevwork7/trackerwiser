@@ -23,7 +23,7 @@ import {
   AlertCircle,
   CheckCircle,
   Globe2,
-  Map,
+  Map as MapIcon,
   Navigation,
   Activity,
   Shield,
@@ -40,15 +40,18 @@ interface LocationEvent {
   page_url: string;
   visitor_id: string;
   session_id: string;
-  ip_address: string;
-  country: string;
-  city: string;
-  device_type: string;
-  browser: string;
-  os: string;
+  ip_address: string | null;
+  country: string | null;
+  city: string | null;
+  device_type: string | null;
+  browser: string | null;
+  os: string | null;
   created_at: string;
   website_id: string;
-  website_name?: string;
+  websites?: {
+    id: string;
+    name: string;
+  };
 }
 
 interface LocationStats {
@@ -85,47 +88,102 @@ const LocationAnalytics = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    fetchLocationData();
-  }, [selectedWebsite, timeFilter]);
+    if (websites.length > 0) {
+      fetchLocationData();
+    }
+  }, [selectedWebsite, timeFilter, websites]);
 
   const fetchLocationData = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from("analytics_events")
-        .select(
-          `
-          *,
-          websites!inner(name)
-        `
-        )
-        .not("country", "eq", "Unknown")
-        .not("ip_address", "eq", "unknown");
+      // Get the current user's website IDs
+      const currentUserWebsiteIds = websites.map((website) => website.id);
 
-      // Add website filter
+      // If no websites, show empty state
+      if (currentUserWebsiteIds.length === 0) {
+        setLocationStats({
+          totalLocations: 0,
+          uniqueCountries: 0,
+          uniqueCities: 0,
+          totalIPs: 0,
+          activeSessions: 0,
+          topCountries: [],
+          topCities: [],
+          recentEvents: [],
+        });
+        setLoading(false);
+        return;
+      }
+
+      let query = supabase.from("analytics_events").select(`
+          *,
+          websites (
+            id,
+            name
+          )
+        `);
+
+      // Filter by current user's websites
+      query = query.in("website_id", currentUserWebsiteIds);
+
+      // Apply specific website filter if selected
       if (selectedWebsite !== "all") {
         query = query.eq("website_id", selectedWebsite);
       }
 
-      // Add time filter
+      // Apply time filter
       const timeFilterDate = getTimeFilterDate(timeFilter);
       if (timeFilterDate) {
         query = query.gte("created_at", timeFilterDate.toISOString());
       }
 
-      const { data: events, error } = await query.order("created_at", {
-        ascending: false,
-      });
+      const { data: events, error } = await query;
 
       if (error) {
         console.error("Error fetching location data:", error);
-        return;
+        throw error;
       }
 
-      const processedData = processLocationData(events || []);
-      setLocationStats(processedData);
+      if (events && events.length > 0) {
+        // Cast the events to the correct type
+        const typedEvents: LocationEvent[] = events.map((event) => ({
+          ...event,
+          ip_address: event.ip_address as string | null,
+          country: event.country as string | null,
+          city: event.city as string | null,
+          device_type: event.device_type as string | null,
+          browser: event.browser as string | null,
+          os: event.os as string | null,
+        }));
+
+        const processedData = processLocationData(typedEvents);
+        setLocationStats(processedData);
+      } else {
+        // Set empty stats if no data
+        setLocationStats({
+          totalLocations: 0,
+          uniqueCountries: 0,
+          uniqueCities: 0,
+          totalIPs: 0,
+          activeSessions: 0,
+          topCountries: [],
+          topCities: [],
+          recentEvents: [],
+        });
+      }
     } catch (error) {
       console.error("Error fetching location data:", error);
+      // Set empty stats on error
+      setLocationStats({
+        totalLocations: 0,
+        uniqueCountries: 0,
+        uniqueCities: 0,
+        totalIPs: 0,
+        activeSessions: 0,
+        topCountries: [],
+        topCities: [],
+        recentEvents: [],
+      });
     } finally {
       setLoading(false);
     }
@@ -147,24 +205,46 @@ const LocationAnalytics = () => {
     }
   };
 
-  const processLocationData = (events: any[]): LocationStats => {
+  const processLocationData = (events: LocationEvent[]): LocationStats => {
     // Group by country
-    const countryMap = new Map();
-    const cityMap = new Map();
-    const ipSet = new Set();
-    const sessionSet = new Set();
+    const countryMap = new Map<
+      string,
+      {
+        country: string;
+        flag: string;
+        visitors: Set<string>;
+        events: number;
+      }
+    >();
+    const cityMap = new Map<
+      string,
+      {
+        city: string;
+        country: string;
+        flag: string;
+        visitors: Set<string>;
+        events: number;
+      }
+    >();
+    const ipSet = new Set<string>();
+    const sessionSet = new Set<string>();
 
     events.forEach((event) => {
+      // Skip events without location data
+      if (!event.country || !event.city || !event.ip_address) {
+        return;
+      }
+
       // Country stats
       if (!countryMap.has(event.country)) {
         countryMap.set(event.country, {
           country: event.country,
           flag: getCountryFlag(event.country),
-          visitors: new Set(),
+          visitors: new Set<string>(),
           events: 0,
         });
       }
-      const countryData = countryMap.get(event.country);
+      const countryData = countryMap.get(event.country)!;
       countryData.visitors.add(event.visitor_id);
       countryData.events += 1;
 
@@ -175,11 +255,11 @@ const LocationAnalytics = () => {
           city: event.city,
           country: event.country,
           flag: getCountryFlag(event.country),
-          visitors: new Set(),
+          visitors: new Set<string>(),
           events: 0,
         });
       }
-      const cityData = cityMap.get(cityKey);
+      const cityData = cityMap.get(cityKey)!;
       cityData.visitors.add(event.visitor_id);
       cityData.events += 1;
 
@@ -192,8 +272,10 @@ const LocationAnalytics = () => {
     const totalEvents = events.length;
     const topCountries = Array.from(countryMap.values())
       .map((country) => ({
-        ...country,
+        country: country.country,
+        flag: country.flag,
         visitors: country.visitors.size,
+        events: country.events,
         percentage: Math.round((country.events / totalEvents) * 100),
       }))
       .sort((a, b) => b.events - a.events)
@@ -201,8 +283,11 @@ const LocationAnalytics = () => {
 
     const topCities = Array.from(cityMap.values())
       .map((city) => ({
-        ...city,
+        city: city.city,
+        country: city.country,
+        flag: city.flag,
         visitors: city.visitors.size,
+        events: city.events,
       }))
       .sort((a, b) => b.events - a.events)
       .slice(0, 10);
@@ -215,10 +300,16 @@ const LocationAnalytics = () => {
       activeSessions: sessionSet.size,
       topCountries,
       topCities,
-      recentEvents: events.slice(0, 50).map((event) => ({
-        ...event,
-        website_name: event.websites?.name,
-      })),
+      recentEvents: events
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+        .slice(0, 50)
+        .map((event) => ({
+          ...event,
+          website_name: event.websites?.name,
+        })),
     };
   };
 
@@ -281,18 +372,22 @@ const LocationAnalytics = () => {
   const filteredEvents = locationStats?.recentEvents.filter((event) =>
     searchTerm
       ? event.page_url.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        event.country.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        event.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        event.ip_address.includes(searchTerm)
+        event.country?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        event.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        event.ip_address?.includes(searchTerm)
       : true
   );
 
-  if (loading) {
+  if (loading || websites.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-sky-500" />
-          <p className="text-slate-600">Loading location data...</p>
+          <p className="text-slate-600">
+            {websites.length === 0
+              ? "Loading websites..."
+              : "Loading location data..."}
+          </p>
         </div>
       </div>
     );
@@ -325,7 +420,7 @@ const LocationAnalytics = () => {
                   {locationStats?.uniqueCountries}
                 </p>
               </div>
-              <Map className="w-8 h-8 text-white/80" />
+              <MapIcon className="w-8 h-8 text-white/80" />
             </div>
           </CardContent>
         </Card>
@@ -545,7 +640,7 @@ const LocationAnalytics = () => {
                 >
                   <div className="flex items-center space-x-3">
                     <span className="text-2xl">
-                      {getCountryFlag(event.country)}
+                      {getCountryFlag(event.country || "")}
                     </span>
                     <div className="flex items-center space-x-2">
                       <Badge className={getEventColor(event.event_type)}>
@@ -560,9 +655,9 @@ const LocationAnalytics = () => {
                       <span className="text-sm font-medium text-slate-900 truncate">
                         {event.page_url}
                       </span>
-                      {event.website_name && (
+                      {event.websites?.name && (
                         <Badge variant="outline" className="text-xs">
-                          {event.website_name}
+                          {event.websites.name}
                         </Badge>
                       )}
                     </div>
