@@ -128,6 +128,7 @@ const HeatmapDashboard = () => {
   const [recordingEnabled, setRecordingEnabled] = useState(false);
   const [timeFilter, setTimeFilter] = useState("24h");
   const [searchTerm, setSearchTerm] = useState("");
+  const [hasShownDisabledToast, setHasShownDisabledToast] = useState(false);
 
   useEffect(() => {
     if (websites.length > 0 && !selectedWebsite) {
@@ -144,16 +145,27 @@ const HeatmapDashboard = () => {
   }, [selectedWebsite, timeFilter]);
 
   useEffect(() => {
-    // Show toast when heatmap is disabled
-    if (selectedWebsite && !heatmapEnabled) {
+    // Show toast when heatmap is disabled (only once per session and after data is loaded)
+    if (
+      selectedWebsite &&
+      !loading &&
+      !heatmapEnabled &&
+      !hasShownDisabledToast
+    ) {
       toast({
         title: "Heatmap Tracking Disabled",
         description:
           "Enable heatmap tracking to see user interaction analytics and behavior patterns.",
         variant: "default",
       });
+      setHasShownDisabledToast(true);
     }
-  }, [selectedWebsite, heatmapEnabled, toast]);
+
+    // Reset the flag when heatmap is enabled
+    if (heatmapEnabled) {
+      setHasShownDisabledToast(false);
+    }
+  }, [selectedWebsite, heatmapEnabled, hasShownDisabledToast, loading, toast]);
 
   const fetchHeatmapData = async () => {
     if (!selectedWebsite) return;
