@@ -146,6 +146,9 @@ const DynamicLiveAnalytics = () => {
   useEffect(() => {
     if (websites.length > 0 && !selectedWebsite) {
       setSelectedWebsite(websites[0].id);
+    } else if (websites.length === 0) {
+      // If no websites, stop loading immediately
+      setLoading(false);
     }
   }, [websites, selectedWebsite]);
 
@@ -153,8 +156,17 @@ const DynamicLiveAnalytics = () => {
     if (selectedWebsite) {
       processAnalyticsData();
       setupRealTimeSubscription();
+    } else if (websites.length === 0) {
+      // If no websites, stop loading
+      setLoading(false);
     }
-  }, [selectedWebsite, selectedTimeRange, analyticsEvents, botDetections]);
+  }, [
+    selectedWebsite,
+    selectedTimeRange,
+    analyticsEvents,
+    botDetections,
+    websites.length,
+  ]);
 
   // Real-time counter effect
   useEffect(() => {

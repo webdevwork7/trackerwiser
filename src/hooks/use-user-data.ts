@@ -10,6 +10,9 @@ interface Website {
   is_active: boolean;
   created_at: string;
   user_id: string;
+  cloaking_enabled: boolean | null;
+  heatmap_enabled: boolean | null;
+  session_recording_enabled: boolean | null;
 }
 
 interface AnalyticsEvent {

@@ -1,25 +1,31 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Copy, 
-  CheckCircle, 
-  Code, 
-  Globe, 
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Copy,
+  CheckCircle,
+  Code,
+  Globe,
   Settings,
   Eye,
   Zap,
   Shield,
   AlertCircle,
-  Download
-} from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+  Download,
+} from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 interface TrackingScriptGeneratorProps {
   websiteId: string;
@@ -32,7 +38,7 @@ const TrackingScriptGenerator: React.FC<TrackingScriptGeneratorProps> = ({
   websiteId,
   trackingCode,
   domain,
-  websiteName
+  websiteName,
 }) => {
   const [copied, setCopied] = useState(false);
   const [testMode, setTestMode] = useState(false);
@@ -45,6 +51,7 @@ const TrackingScriptGenerator: React.FC<TrackingScriptGeneratorProps> = ({
   // TrackWiser configuration
   var trackingCode = '${trackingCode}';
   var apiUrl = 'https://ltluebewuhheisbbjcss.supabase.co/functions/v1/track-event';
+  var heatmapApiUrl = 'https://ltluebewuhheisbbjcss.supabase.co/functions/v1/track-heatmap';
   
   // Generate or get visitor ID
   function getVisitorId() {
@@ -111,6 +118,66 @@ const TrackingScriptGenerator: React.FC<TrackingScriptGeneratorProps> = ({
     sendEvent('page_view');
   }
   
+  // Send heatmap event
+  function sendHeatmapEvent(eventType, element, x, y) {
+    // Get better element information
+    var elementInfo = '';
+    var elementText = '';
+    
+    if (element) {
+      // Get readable text (prefer text content over inner text)
+      elementText = element.textContent?.trim().substring(0, 100) || element.innerText?.trim().substring(0, 100) || '';
+      
+      // Create a cleaner selector
+      var selector = element.tagName.toLowerCase();
+      
+      // Add ID if available
+      if (element.id) {
+        selector += '#' + element.id;
+      }
+      // Add a few key classes (max 3) instead of all classes
+      else if (element.className) {
+        var classes = element.className.split(' ').filter(function(c) {
+          return c.length > 0 && !c.includes('bg-') && !c.includes('text-') && !c.includes('border-') && !c.includes('rounded-');
+        });
+        if (classes.length > 0) {
+          selector += '.' + classes.slice(0, 3).join('.');
+        }
+      }
+      
+      // If we have readable text, use it as the main identifier
+      if (elementText.length > 0 && elementText.length < 50) {
+        elementInfo = elementText;
+      } else {
+        elementInfo = selector;
+      }
+    }
+    
+    var data = {
+      tracking_code: trackingCode,
+      event_type: eventType,
+      page_url: window.location.href,
+      x_position: x,
+      y_position: y,
+      element_selector: elementInfo,
+      element_text: elementText,
+      session_id: getSessionId(),
+      visitor_id: getVisitorId()
+    };
+    
+    console.log('TrackWiser: Sending heatmap event', eventType, data);
+    
+    fetch(heatmapApiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data)
+    }).catch(function(error) {
+      console.error('TrackWiser: Error sending heatmap event', error);
+    });
+  }
+  
   // Track clicks on important elements
   document.addEventListener('click', function(e) {
     var target = e.target;
@@ -122,6 +189,9 @@ const TrackingScriptGenerator: React.FC<TrackingScriptGeneratorProps> = ({
         class: target.className || ''
       });
     }
+    
+    // Send heatmap click event
+    sendHeatmapEvent('click', target, e.clientX, e.clientY);
   });
   
   // Track form submissions
@@ -133,17 +203,37 @@ const TrackingScriptGenerator: React.FC<TrackingScriptGeneratorProps> = ({
         form_name: form.name || '',
         action: form.action || ''
       });
+      
+      // Send heatmap form event
+      sendHeatmapEvent('form_submit', form, 0, 0);
     }
   });
   
   // Track scroll depth
   var maxScroll = 0;
+  var lastScrollTime = 0;
   window.addEventListener('scroll', function() {
     var scrollPercent = Math.round((window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100);
     if (scrollPercent > maxScroll && scrollPercent % 25 === 0) {
       maxScroll = scrollPercent;
       sendEvent('scroll', { depth: scrollPercent });
     }
+    
+    // Send heatmap scroll event (throttled)
+    var now = Date.now();
+    if (now - lastScrollTime > 1000) {
+      sendHeatmapEvent('scroll', null, 0, window.scrollY);
+      lastScrollTime = now;
+    }
+  });
+  
+  // Track hover events (throttled)
+  var hoverTimeout;
+  document.addEventListener('mouseover', function(e) {
+    clearTimeout(hoverTimeout);
+    hoverTimeout = setTimeout(function() {
+      sendHeatmapEvent('hover', e.target, e.clientX, e.clientY);
+    }, 500);
   });
   
   // Track time on page
@@ -208,14 +298,14 @@ const TrackingScriptGenerator: React.FC<TrackingScriptGeneratorProps> = ({
                 Live Tracking
               </Badge>
             </div>
-            
+
             <Tabs defaultValue="script" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="script">Script</TabsTrigger>
                 <TabsTrigger value="instructions">Instructions</TabsTrigger>
                 <TabsTrigger value="test">Test</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="script" className="space-y-4">
                 <div className="relative">
                   <Textarea
@@ -228,19 +318,24 @@ const TrackingScriptGenerator: React.FC<TrackingScriptGeneratorProps> = ({
                     className="absolute top-2 right-2 bg-sky-500 hover:bg-sky-600 text-white"
                     size="sm"
                   >
-                    {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copied ? (
+                      <CheckCircle className="w-4 h-4" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
                   </Button>
                 </div>
-                
+
                 <Alert>
                   <Shield className="h-4 w-4" />
                   <AlertDescription>
-                    This script automatically tracks page views, clicks, form submissions, scroll depth, and time on page.
-                    It also includes bot detection and real-time analytics.
+                    This script automatically tracks page views, clicks, form
+                    submissions, scroll depth, and time on page. It also
+                    includes bot detection and real-time analytics.
                   </AlertDescription>
                 </Alert>
               </TabsContent>
-              
+
               <TabsContent value="instructions" className="space-y-4">
                 <div className="space-y-6">
                   <div className="bg-gradient-to-r from-sky-50 to-teal-50 p-6 rounded-lg border border-sky-100">
@@ -248,38 +343,62 @@ const TrackingScriptGenerator: React.FC<TrackingScriptGeneratorProps> = ({
                       <Settings className="w-5 h-5 mr-2 text-sky-500" />
                       Quick Setup Guide
                     </h3>
-                    
+
                     <div className="space-y-4">
                       <div className="flex items-start space-x-3">
-                        <div className="w-8 h-8 bg-sky-500 text-white rounded-full flex items-center justify-center text-sm font-bold">1</div>
+                        <div className="w-8 h-8 bg-sky-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                          1
+                        </div>
                         <div>
-                          <h4 className="font-semibold text-slate-900">Copy the Script</h4>
-                          <p className="text-slate-600">Click the copy button above to copy the complete tracking script.</p>
+                          <h4 className="font-semibold text-slate-900">
+                            Copy the Script
+                          </h4>
+                          <p className="text-slate-600">
+                            Click the copy button above to copy the complete
+                            tracking script.
+                          </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-start space-x-3">
-                        <div className="w-8 h-8 bg-teal-500 text-white rounded-full flex items-center justify-center text-sm font-bold">2</div>
+                        <div className="w-8 h-8 bg-teal-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                          2
+                        </div>
                         <div>
-                          <h4 className="font-semibold text-slate-900">Paste in HTML Head</h4>
-                          <p className="text-slate-600">Add the script to your website's HTML head section, right before the closing &lt;/head&gt; tag.</p>
+                          <h4 className="font-semibold text-slate-900">
+                            Paste in HTML Head
+                          </h4>
+                          <p className="text-slate-600">
+                            Add the script to your website's HTML head section,
+                            right before the closing &lt;/head&gt; tag.
+                          </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-start space-x-3">
-                        <div className="w-8 h-8 bg-lime-500 text-white rounded-full flex items-center justify-center text-sm font-bold">3</div>
+                        <div className="w-8 h-8 bg-lime-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                          3
+                        </div>
                         <div>
-                          <h4 className="font-semibold text-slate-900">Test & Monitor</h4>
-                          <p className="text-slate-600">Visit your website to test the tracking. Check the browser console for "TrackWiser Analytics initialized" message.</p>
+                          <h4 className="font-semibold text-slate-900">
+                            Test & Monitor
+                          </h4>
+                          <p className="text-slate-600">
+                            Visit your website to test the tracking. Check the
+                            browser console for "TrackWiser Analytics
+                            initialized" message.
+                          </p>
                         </div>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                    <h4 className="font-semibold text-slate-900 mb-2">Example HTML Implementation:</h4>
+                    <h4 className="font-semibold text-slate-900 mb-2">
+                      Example HTML Implementation:
+                    </h4>
                     <pre className="text-sm text-slate-600 bg-white p-3 rounded border overflow-x-auto">
-{`<!DOCTYPE html>
+                      {`<!DOCTYPE html>
 <html>
 <head>
     <title>Your Website</title>
@@ -299,17 +418,19 @@ const TrackingScriptGenerator: React.FC<TrackingScriptGeneratorProps> = ({
 </html>`}
                     </pre>
                   </div>
-                  
+
                   <Alert>
                     <Eye className="h-4 w-4" />
                     <AlertDescription>
-                      <strong>Pro Tip:</strong> The script automatically starts tracking as soon as it's loaded. 
-                      You can manually track custom events using <code>window.trackWiser.track('event_name', data)</code>
+                      <strong>Pro Tip:</strong> The script automatically starts
+                      tracking as soon as it's loaded. You can manually track
+                      custom events using{" "}
+                      <code>window.trackWiser.track('event_name', data)</code>
                     </AlertDescription>
                   </Alert>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="test" className="space-y-4">
                 <div className="space-y-4">
                   <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
@@ -320,15 +441,22 @@ const TrackingScriptGenerator: React.FC<TrackingScriptGeneratorProps> = ({
                     <ul className="text-yellow-700 space-y-1 text-sm">
                       <li>• Open your website in a new browser tab</li>
                       <li>• Open browser Developer Tools (F12)</li>
-                      <li>• Check the Console tab for "TrackWiser Analytics initialized" message</li>
+                      <li>
+                        • Check the Console tab for "TrackWiser Analytics
+                        initialized" message
+                      </li>
                       <li>• Navigate through your site to generate events</li>
-                      <li>• Return to this dashboard to view real-time analytics</li>
+                      <li>
+                        • Return to this dashboard to view real-time analytics
+                      </li>
                     </ul>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                      <h4 className="font-semibold text-green-800 mb-2">✅ What Gets Tracked</h4>
+                      <h4 className="font-semibold text-green-800 mb-2">
+                        ✅ What Gets Tracked
+                      </h4>
                       <ul className="text-green-700 text-sm space-y-1">
                         <li>• Page views and navigation</li>
                         <li>• Button and link clicks</li>
@@ -338,12 +466,16 @@ const TrackingScriptGenerator: React.FC<TrackingScriptGeneratorProps> = ({
                         <li>• User device and browser info</li>
                       </ul>
                     </div>
-                    
+
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                      <h4 className="font-semibold text-blue-800 mb-2">🔧 Custom Tracking</h4>
+                      <h4 className="font-semibold text-blue-800 mb-2">
+                        🔧 Custom Tracking
+                      </h4>
                       <ul className="text-blue-700 text-sm space-y-1">
                         <li>• Add class="trackable" to any element</li>
-                        <li>• Use window.trackWiser.track() for custom events</li>
+                        <li>
+                          • Use window.trackWiser.track() for custom events
+                        </li>
                         <li>• Check localStorage for tw_visitor_id</li>
                         <li>• Monitor sessionStorage for tw_session_id</li>
                       </ul>

@@ -90,6 +90,9 @@ const LocationAnalytics = () => {
   useEffect(() => {
     if (websites.length > 0) {
       fetchLocationData();
+    } else if (websites.length === 0) {
+      // If no websites, stop loading
+      setLoading(false);
     }
   }, [selectedWebsite, timeFilter, websites]);
 
@@ -378,15 +381,27 @@ const LocationAnalytics = () => {
       : true
   );
 
-  if (loading || websites.length === 0) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-sky-500" />
+          <p className="text-slate-600">Loading location data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (websites.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Globe className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">
+            No websites found
+          </h3>
           <p className="text-slate-600">
-            {websites.length === 0
-              ? "Loading websites..."
-              : "Loading location data..."}
+            Add a website to start tracking location analytics
           </p>
         </div>
       </div>

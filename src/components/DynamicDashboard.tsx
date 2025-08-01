@@ -31,6 +31,8 @@ import {
   Award,
   Sparkles,
   MapPin,
+  EyeOff,
+  Layers,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserData } from "@/hooks/use-user-data";
@@ -46,6 +48,8 @@ import OverviewRecentActivity from "./overview/OverviewRecentActivity";
 import OverviewPerformance from "./overview/OverviewPerformance";
 import OverviewInsights from "./overview/OverviewInsights";
 import OverviewLiveVisitors from "./overview/OverviewLiveVisitors";
+import CloakingDashboard from "./CloakingDashboard";
+import HeatmapDashboard from "./HeatmapDashboard";
 
 const DynamicDashboard = () => {
   const { user, signOut } = useAuth();
@@ -185,6 +189,20 @@ const DynamicDashboard = () => {
               <MapPin className="w-4 h-4" />
               <span>Location</span>
             </TabsTrigger>
+            <TabsTrigger
+              value="cloaking"
+              className="flex items-center space-x-2"
+            >
+              <EyeOff className="w-4 h-4" />
+              <span>Cloaking</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="heatmap"
+              className="flex items-center space-x-2"
+            >
+              <Layers className="w-4 h-4" />
+              <span>Heatmap</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -217,6 +235,14 @@ const DynamicDashboard = () => {
 
           <TabsContent value="location">
             <LocationAnalytics />
+          </TabsContent>
+
+          <TabsContent value="cloaking">
+            <CloakingDashboard />
+          </TabsContent>
+
+          <TabsContent value="heatmap">
+            <HeatmapDashboard />
           </TabsContent>
         </Tabs>
       </main>

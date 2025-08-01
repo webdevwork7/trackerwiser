@@ -68,6 +68,77 @@ async function getGeolocation(
   return { country: "Unknown", city: "Unknown" };
 }
 
+// Function to check cloaking rules
+async function checkCloakingRules(
+  supabase: any,
+  website: any,
+  userAgent: string,
+  ip: string,
+  country: string,
+  deviceType: string
+): Promise<{ action: string | null; ruleId: string | null }> {
+  if (!website.cloaking_enabled) {
+    return { action: null, ruleId: null };
+  }
+
+  try {
+    // Get active cloaking rules for this website
+    const { data: rules, error } = await supabase
+      .from("cloaking_rules")
+      .select("*")
+      .eq("website_id", website.id)
+      .eq("status", "active");
+
+    if (error || !rules || rules.length === 0) {
+      return { action: null, ruleId: null };
+    }
+
+    for (const rule of rules) {
+      let shouldTrigger = false;
+
+      switch (rule.trigger) {
+        case "user_agent":
+          shouldTrigger = userAgent
+            .toLowerCase()
+            .includes(rule.condition.toLowerCase());
+          break;
+        case "country":
+          shouldTrigger =
+            country.toLowerCase() === rule.condition.toLowerCase();
+          break;
+        case "device_type":
+          shouldTrigger =
+            deviceType.toLowerCase() === rule.condition.toLowerCase();
+          break;
+        case "ip_reputation":
+          // Simple IP reputation check (you can enhance this)
+          shouldTrigger = ip.startsWith(rule.condition);
+          break;
+        case "connection_type":
+          // You can enhance this with more sophisticated detection
+          shouldTrigger = userAgent
+            .toLowerCase()
+            .includes(rule.condition.toLowerCase());
+          break;
+      }
+
+      if (shouldTrigger) {
+        // Update hit count
+        await supabase
+          .from("cloaking_rules")
+          .update({ hits: rule.hits + 1 })
+          .eq("id", rule.id);
+
+        return { action: rule.action, ruleId: rule.id };
+      }
+    }
+  } catch (error) {
+    console.error("Error checking cloaking rules:", error);
+  }
+
+  return { action: null, ruleId: null };
+}
+
 // Improved browser detection
 function getBrowserInfo(userAgent: string): {
   browser: string;
@@ -239,6 +310,40 @@ serve(async (req) => {
     const { country, city } = await getGeolocation(ip);
     console.log("Geolocation:", { country, city });
 
+    // Parse user agent for device info
+    const isMobile = /mobile|android|iphone|ipad|tablet/i.test(
+      user_agent || ""
+    );
+    const isTablet = /tablet|ipad/i.test(user_agent || "");
+    const deviceType = isTablet ? "tablet" : isMobile ? "mobile" : "desktop";
+
+    // Get detailed browser and OS info
+    const { browser: browserName, version: browserVersion } = getBrowserInfo(
+      user_agent || ""
+    );
+    const { os: osName, version: osVersion } = getOSInfo(user_agent || "");
+
+    const browser = `${browserName} ${browserVersion}`.trim();
+    const os = `${osName} ${osVersion}`.trim();
+
+    console.log("Browser info:", { browser, os, deviceType });
+
+    // Check cloaking rules
+    const { action: cloakingAction, ruleId: cloakingRuleId } =
+      await checkCloakingRules(
+        supabase,
+        website,
+        user_agent || "",
+        ip,
+        country,
+        deviceType
+      );
+
+    console.log("Cloaking check result:", {
+      action: cloakingAction,
+      ruleId: cloakingRuleId,
+    });
+
     // Simple bot detection
     const botPatterns = [
       /bot/i,
@@ -273,24 +378,6 @@ serve(async (req) => {
 
     const isBot = botPatterns.some((pattern) => pattern.test(user_agent || ""));
     console.log("Bot detection result:", isBot);
-
-    // Parse user agent for device info
-    const isMobile = /mobile|android|iphone|ipad|tablet/i.test(
-      user_agent || ""
-    );
-    const isTablet = /tablet|ipad/i.test(user_agent || "");
-    const deviceType = isTablet ? "tablet" : isMobile ? "mobile" : "desktop";
-
-    // Get detailed browser and OS info
-    const { browser: browserName, version: browserVersion } = getBrowserInfo(
-      user_agent || ""
-    );
-    const { os: osName, version: osVersion } = getOSInfo(user_agent || "");
-
-    const browser = `${browserName} ${browserVersion}`.trim();
-    const os = `${osName} ${osVersion}`.trim();
-
-    console.log("Browser info:", { browser, os, deviceType });
 
     // If it's a bot, record the detection
     if (isBot) {
@@ -334,6 +421,7 @@ serve(async (req) => {
         browser,
         os,
         is_bot: false,
+        cloaking_action: cloakingAction,
       });
 
     if (insertError) {
@@ -355,6 +443,7 @@ serve(async (req) => {
         country,
         city,
         ip_address: ip,
+        cloaking_action: cloakingAction,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
