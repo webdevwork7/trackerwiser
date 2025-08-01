@@ -25,6 +25,7 @@ import {
 import AdminPanel from "@/components/AdminPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePageVisibility } from "@/hooks/use-page-visibility";
 
 const Dashboard = () => {
   const [liveVisitors, setLiveVisitors] = useState(247);
@@ -32,6 +33,7 @@ const Dashboard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminLoading, setAdminLoading] = useState(true);
   const { user } = useAuth();
+  const isVisible = usePageVisibility();
 
   // Check if user is admin
   useEffect(() => {
@@ -72,15 +74,18 @@ const Dashboard = () => {
     checkAdminStatus();
   }, [user]);
 
-  // Simulate real-time updates
+  // Simulate real-time updates only when tab is visible
   useEffect(() => {
     const interval = setInterval(() => {
-      setLiveVisitors((prev) => prev + Math.floor(Math.random() * 5) - 2);
-      setBotsBlocked((prev) => prev + Math.floor(Math.random() * 3));
+      // Only update if the tab is visible
+      if (isVisible.current) {
+        setLiveVisitors((prev) => prev + Math.floor(Math.random() * 5) - 2);
+        setBotsBlocked((prev) => prev + Math.floor(Math.random() * 3));
+      }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isVisible]);
 
   if (adminLoading) {
     return (

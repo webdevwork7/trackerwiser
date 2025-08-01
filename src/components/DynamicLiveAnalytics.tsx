@@ -34,6 +34,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserData } from "@/hooks/use-user-data";
+import { usePageVisibility } from "@/hooks/use-page-visibility";
 import {
   Globe,
   Smartphone,
@@ -142,6 +143,7 @@ const DynamicLiveAnalytics = () => {
   const [realTimeUpdates, setRealTimeUpdates] = useState(0);
   const { user } = useAuth();
   const { websites, analyticsEvents, botDetections } = useUserData();
+  const isVisible = usePageVisibility();
 
   useEffect(() => {
     if (websites.length > 0 && !selectedWebsite) {
@@ -168,13 +170,15 @@ const DynamicLiveAnalytics = () => {
     websites.length,
   ]);
 
-  // Real-time counter effect
+  // Real-time counter effect only when tab is visible
   useEffect(() => {
     const interval = setInterval(() => {
-      setRealTimeUpdates((prev) => prev + 1);
+      if (isVisible.current) {
+        setRealTimeUpdates((prev) => prev + 1);
+      }
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isVisible]);
 
   const setupRealTimeSubscription = () => {
     const channel = supabase

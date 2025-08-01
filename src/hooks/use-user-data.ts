@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePageVisibility } from "@/hooks/use-page-visibility";
 
 interface Website {
   id: string;
@@ -57,6 +58,7 @@ interface UserStats {
 
 export const useUserData = () => {
   const { user } = useAuth();
+  const isVisible = usePageVisibility();
   const [websites, setWebsites] = useState<Website[]>([]);
   const [analyticsEvents, setAnalyticsEvents] = useState<AnalyticsEvent[]>([]);
   const [botDetections, setBotDetections] = useState<BotDetection[]>([]);
@@ -186,7 +188,7 @@ export const useUserData = () => {
     fetchUserData();
   }, [user]);
 
-  // Set up real-time subscriptions
+  // Set up real-time subscriptions only when tab is visible
   useEffect(() => {
     if (!user) return;
 
@@ -200,8 +202,10 @@ export const useUserData = () => {
           table: "analytics_events",
         },
         () => {
-          // Refresh data when analytics events change
-          fetchUserData();
+          // Refresh data when analytics events change only if tab is visible
+          if (isVisible.current) {
+            fetchUserData();
+          }
         }
       )
       .on(
@@ -212,8 +216,10 @@ export const useUserData = () => {
           table: "bot_detections",
         },
         () => {
-          // Refresh data when bot detections change
-          fetchUserData();
+          // Refresh data when bot detections change only if tab is visible
+          if (isVisible.current) {
+            fetchUserData();
+          }
         }
       )
       .on(
@@ -224,8 +230,10 @@ export const useUserData = () => {
           table: "websites",
         },
         () => {
-          // Refresh data when websites change
-          fetchUserData();
+          // Refresh data when websites change only if tab is visible
+          if (isVisible.current) {
+            fetchUserData();
+          }
         }
       )
       .subscribe();
@@ -233,7 +241,7 @@ export const useUserData = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, isVisible]);
 
   // Recalculate stats when analytics data changes
   useEffect(() => {

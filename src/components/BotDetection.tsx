@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Bot, RefreshCw, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { usePageVisibility } from "@/hooks/use-page-visibility";
 import BotDetectionStats from "./bot-detection/BotDetectionStats";
 import BotDetectionOverview from "./bot-detection/BotDetectionOverview";
 import BotDetectionEvents from "./bot-detection/BotDetectionEvents";
@@ -69,12 +70,17 @@ const BotDetection = () => {
     avgResponseTime: 0,
     accuracy: 0,
   });
+  const isVisible = usePageVisibility();
 
   useEffect(() => {
     fetchBotData();
-    const interval = setInterval(fetchBotData, 30000); // Refresh every 30 seconds
+    const interval = setInterval(() => {
+      if (isVisible.current) {
+        fetchBotData();
+      }
+    }, 30000); // Refresh every 30 seconds only when tab is visible
     return () => clearInterval(interval);
-  }, []);
+  }, [isVisible]);
 
   const fetchBotData = async () => {
     try {

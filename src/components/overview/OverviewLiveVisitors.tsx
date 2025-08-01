@@ -20,8 +20,11 @@ import {
   Tablet,
   Wifi,
   WifiOff,
+  Globe2,
+  MonitorSmartphone,
 } from "lucide-react";
 import { useUserData } from "@/hooks/use-user-data";
+import { usePageVisibility } from "@/hooks/use-page-visibility";
 
 interface LiveVisitor {
   id: string;
@@ -33,6 +36,7 @@ interface LiveVisitor {
   device_type: string;
   browser: string;
   os: string;
+  ip_address: string;
   created_at: string;
   is_active: boolean;
   last_seen: string;
@@ -57,17 +61,20 @@ const OverviewLiveVisitors = () => {
   >([]);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [timeSinceUpdate, setTimeSinceUpdate] = useState(0);
+  const isVisible = usePageVisibility();
 
-  // Update time since last update
+  // Update time since last update only when tab is visible
   useEffect(() => {
     const interval = setInterval(() => {
-      setTimeSinceUpdate(
-        Math.floor((Date.now() - lastUpdate.getTime()) / 1000)
-      );
+      if (isVisible.current) {
+        setTimeSinceUpdate(
+          Math.floor((Date.now() - lastUpdate.getTime()) / 1000)
+        );
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [lastUpdate]);
+  }, [lastUpdate, isVisible]);
 
   // Generate live visitor data from analytics events
   useEffect(() => {
@@ -97,6 +104,7 @@ const OverviewLiveVisitors = () => {
             device_type: event.device_type || "desktop",
             browser: event.browser || "Unknown",
             os: event.os || "Unknown",
+            ip_address: event.ip_address || "Unknown",
             created_at: event.created_at,
             is_active:
               new Date(event.created_at) >=
@@ -157,11 +165,15 @@ const OverviewLiveVisitors = () => {
 
     generateLiveVisitors();
 
-    // Update every second
-    const interval = setInterval(generateLiveVisitors, 1000);
+    // Update every second only when tab is visible
+    const interval = setInterval(() => {
+      if (isVisible.current) {
+        generateLiveVisitors();
+      }
+    }, 1000);
 
     return () => clearInterval(interval);
-  }, [analyticsEvents]);
+  }, [analyticsEvents, isVisible]);
 
   const getCountryFlag = (country: string) => {
     const flags: { [key: string]: string } = {
@@ -194,6 +206,26 @@ const OverviewLiveVisitors = () => {
     if (device.includes("mobile")) return <Smartphone className="w-4 h-4" />;
     if (device.includes("tablet")) return <Tablet className="w-4 h-4" />;
     return <Monitor className="w-4 h-4" />;
+  };
+
+  const getBrowserIcon = (browser: string) => {
+    const browserLower = browser.toLowerCase();
+    if (browserLower.includes("chrome")) return "🌐";
+    if (browserLower.includes("firefox")) return "🦊";
+    if (browserLower.includes("safari")) return "🍎";
+    if (browserLower.includes("edge")) return "🌐";
+    if (browserLower.includes("opera")) return "🌐";
+    return "🌐";
+  };
+
+  const getOSIcon = (os: string) => {
+    const osLower = os.toLowerCase();
+    if (osLower.includes("windows")) return "🪟";
+    if (osLower.includes("mac")) return "🍎";
+    if (osLower.includes("ios")) return "📱";
+    if (osLower.includes("android")) return "🤖";
+    if (osLower.includes("linux")) return "🐧";
+    return "💻";
   };
 
   return (
@@ -303,7 +335,8 @@ const OverviewLiveVisitors = () => {
                       : "border-slate-200 bg-slate-50"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
+                  {/* Header Row */}
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">
                       <div className="flex items-center space-x-2">
                         <div
@@ -342,9 +375,71 @@ const OverviewLiveVisitors = () => {
                       </Badge>
                     </div>
                   </div>
-                  <div className="mt-2 text-xs text-slate-600">
-                    <span className="font-medium">Page:</span>{" "}
-                    {visitor.page_url}
+
+                  {/* Detailed Information Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                    <div className="space-y-1">
+                      <span className="font-medium text-slate-700">
+                        Location
+                      </span>
+                      <div className="text-slate-600">
+                        <div className="flex items-center space-x-1">
+                          <span>{getCountryFlag(visitor.country)}</span>
+                          <span>
+                            {visitor.city}, {visitor.country}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="font-medium text-slate-700">Device</span>
+                      <div className="text-slate-600">
+                        <div className="flex items-center space-x-1">
+                          <span>{getOSIcon(visitor.os)}</span>
+                          <span>{visitor.device_type}</span>
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {visitor.os}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="font-medium text-slate-700">
+                        Browser
+                      </span>
+                      <div className="text-slate-600">
+                        <div className="flex items-center space-x-1">
+                          <span>{getBrowserIcon(visitor.browser)}</span>
+                          <span>{visitor.browser}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="font-medium text-slate-700">
+                        IP Address
+                      </span>
+                      <div className="text-slate-600">
+                        <div className="flex items-center space-x-1">
+                          <span>🌐</span>
+                          <span className="font-mono text-xs">
+                            {visitor.ip_address}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Page URL */}
+                  <div className="mt-3 pt-3 border-t border-slate-200">
+                    <div className="text-xs text-slate-600">
+                      <span className="font-medium">Current Page:</span>{" "}
+                      <span className="text-slate-500 break-all">
+                        {visitor.page_url}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
