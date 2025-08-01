@@ -143,6 +143,18 @@ const HeatmapDashboard = () => {
     }
   }, [selectedWebsite, timeFilter]);
 
+  useEffect(() => {
+    // Show toast when heatmap is disabled
+    if (selectedWebsite && !heatmapEnabled) {
+      toast({
+        title: "Heatmap Tracking Disabled",
+        description:
+          "Enable heatmap tracking to see user interaction analytics and behavior patterns.",
+        variant: "default",
+      });
+    }
+  }, [selectedWebsite, heatmapEnabled, toast]);
+
   const fetchHeatmapData = async () => {
     if (!selectedWebsite) return;
 
@@ -564,6 +576,42 @@ const HeatmapDashboard = () => {
           </div>
         </CardHeader>
       </Card>
+
+      {/* Heatmap Disabled Banner */}
+      {selectedWebsite && !heatmapEnabled && (
+        <Card className="bg-amber-50 border-amber-200">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="flex-shrink-0">
+                <Zap className="w-8 h-8 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-amber-800 mb-2">
+                  Heatmap Tracking is Disabled
+                </h3>
+                <p className="text-amber-700 mb-4">
+                  Enable heatmap tracking to see detailed user interaction
+                  analytics, behavior patterns, and engagement insights. You'll
+                  be able to track clicks, scrolls, hovers, and form
+                  submissions.
+                </p>
+                <div className="flex items-center space-x-4">
+                  <Button
+                    onClick={() => toggleHeatmap(true)}
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    <Layers className="w-4 h-4 mr-2" />
+                    Enable Heatmap Tracking
+                  </Button>
+                  <span className="text-sm text-amber-600">
+                    Toggle the "Heatmap" switch above to get started
+                  </span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Statistics */}
       {heatmapStats && (
@@ -1038,6 +1086,8 @@ const HeatmapDashboard = () => {
               <div className="text-center py-8 text-slate-500">
                 {searchTerm
                   ? "No events match your search criteria"
+                  : !heatmapEnabled
+                  ? "Enable heatmap tracking to see user interaction data"
                   : "No heatmap events available"}
               </div>
             )}
