@@ -1506,15 +1506,15 @@ const DynamicLiveAnalytics = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => handleSort(sortBy)}
-                className="w-8 h-8 p-0"
+                className="w-8 h-8 p-0 border-orange-200 hover:border-orange-300 hover:bg-orange-50"
                 title={`Sort ${
                   sortOrder === "asc" ? "Descending" : "Ascending"
                 }`}
               >
                 {sortOrder === "asc" ? (
-                  <SortAsc className="w-4 h-4" />
+                  <SortAsc className="w-4 h-4 text-orange-600" />
                 ) : (
-                  <SortDesc className="w-4 h-4" />
+                  <SortDesc className="w-4 h-4 text-orange-600" />
                 )}
               </Button>
 
