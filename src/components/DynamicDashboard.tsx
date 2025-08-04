@@ -214,7 +214,7 @@ const DynamicDashboard = () => {
               <OverviewRecentActivity stats={stats} />
               <OverviewPerformance stats={stats} />
             </div>
-            <OverviewInsights stats={stats} />
+            <OverviewInsights stats={stats} setActiveTab={setActiveTab} />
           </TabsContent>
 
           <TabsContent value="analytics">

@@ -33,9 +33,38 @@ interface UserStats {
 
 interface OverviewInsightsProps {
   stats: UserStats;
+  setActiveTab?: (tab: string) => void;
 }
 
-const OverviewInsights = ({ stats }: OverviewInsightsProps) => {
+const OverviewInsights = ({ stats, setActiveTab }: OverviewInsightsProps) => {
+  const handleButtonClick = (action: string) => {
+    if (!setActiveTab) return;
+
+    switch (action) {
+      case "Add Website":
+        setActiveTab("websites");
+        break;
+      case "Activate Sites":
+        setActiveTab("websites");
+        break;
+      case "Check Setup":
+        setActiveTab("setup");
+        break;
+      case "View Details":
+        setActiveTab("status");
+        break;
+      case "Optimize":
+        setActiveTab("analytics");
+        break;
+      case "View Analytics":
+        setActiveTab("analytics");
+        break;
+      default:
+        // Default to overview if action doesn't match
+        setActiveTab("overview");
+    }
+  };
+
   const getInsights = () => {
     const insights = [];
 
@@ -207,6 +236,7 @@ const OverviewInsights = ({ stats }: OverviewInsightsProps) => {
                     variant="outline"
                     size="sm"
                     className="w-full border-slate-200 hover:border-slate-300"
+                    onClick={() => handleButtonClick(insight.action)}
                   >
                     {insight.action}
                     <ArrowRight className="w-4 h-4 ml-2" />

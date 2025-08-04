@@ -6,6 +6,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -54,6 +61,13 @@ import {
   Users,
   Target,
   BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  RefreshCw,
+  SortAsc,
+  SortDesc,
 } from "lucide-react";
 
 interface AnalyticsData {
@@ -141,9 +155,95 @@ const DynamicLiveAnalytics = () => {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [realTimeUpdates, setRealTimeUpdates] = useState(0);
+
+  // Pagination state for Recent Events
+  const [currentPage, setCurrentPage] = useState(1);
+  const [eventsPerPage, setEventsPerPage] = useState(20);
+
+  // Filter and sort state for Recent Events
+  const [eventFilter, setEventFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("created_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Geographic detail modal state
+  const [selectedGeoDetail, setSelectedGeoDetail] = useState<{
+    country: string;
+    visitors: number;
+    flag: string;
+    events: number;
+  } | null>(null);
+  const [showGeoModal, setShowGeoModal] = useState(false);
+
+  // Browser detail modal state
+  const [selectedBrowserDetail, setSelectedBrowserDetail] = useState<{
+    name: string;
+    value: number;
+    color: string;
+    count: number;
+  } | null>(null);
+  const [showBrowserModal, setShowBrowserModal] = useState(false);
+
   const { user } = useAuth();
   const { websites, analyticsEvents, botDetections } = useUserData();
   const isVisible = usePageVisibility();
+
+  // Helper function for filtering and sorting events
+  const getFilteredAndSortedEvents = () => {
+    if (!analytics?.recentEvents) return [];
+
+    let filteredEvents = analytics.recentEvents;
+
+    // Apply filter
+    if (eventFilter !== "all") {
+      filteredEvents = filteredEvents.filter(
+        (event) => event.event_type === eventFilter
+      );
+    }
+
+    // Apply sorting
+    filteredEvents.sort((a, b) => {
+      let aValue: string | number, bValue: string | number;
+
+      switch (sortBy) {
+        case "created_at":
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+          break;
+        case "event_type":
+          aValue = a.event_type;
+          bValue = b.event_type;
+          break;
+        case "page_url":
+          aValue = a.page_url;
+          bValue = b.page_url;
+          break;
+        case "device_type":
+          aValue = a.device_type;
+          bValue = b.device_type;
+          break;
+        case "browser":
+          aValue = a.browser;
+          bValue = b.browser;
+          break;
+        case "country":
+          aValue = a.country;
+          bValue = b.country;
+          break;
+        default:
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+      }
+
+      if (sortOrder === "asc") {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+    return filteredEvents;
+  };
 
   useEffect(() => {
     if (websites.length > 0 && !selectedWebsite) {
@@ -177,6 +277,17 @@ const DynamicLiveAnalytics = () => {
         setRealTimeUpdates((prev) => prev + 1);
       }
     }, 3000);
+    return () => clearInterval(interval);
+  }, [isVisible]);
+
+  // Update relative times every minute when tab is visible
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isVisible.current) {
+        // Force re-render to update relative times
+        setRealTimeUpdates((prev) => prev + 1);
+      }
+    }, 60000); // Update every minute
     return () => clearInterval(interval);
   }, [isVisible]);
 
@@ -259,8 +370,22 @@ const DynamicLiveAnalytics = () => {
   };
 
   const processAnalyticsDataHelper = (
-    events: any[],
-    bots: any[]
+    events: Array<{
+      id: string;
+      event_type: string;
+      page_url: string;
+      visitor_id: string;
+      device_type: string;
+      browser: string;
+      country: string;
+      created_at: string;
+      session_id?: string;
+    }>,
+    bots: Array<{
+      id: string;
+      website_id: string;
+      created_at: string;
+    }>
   ): AnalyticsData => {
     // Event type counts
     const eventCounts = events.reduce((acc, event) => {
@@ -368,38 +493,51 @@ const DynamicLiveAnalytics = () => {
       }));
 
     // Top pages with comprehensive event data
-    const pageData = events.reduce((acc, event) => {
-      if (event.page_url) {
-        if (!acc[event.page_url]) {
-          acc[event.page_url] = {
-            views: 0,
-            clicks: 0,
-            forms: 0,
-            scrolls: 0,
-            totalEvents: 0,
-            avgTime: 0,
-          };
-        }
+    const pageData = events.reduce(
+      (acc, event) => {
+        if (event.page_url) {
+          if (!acc[event.page_url]) {
+            acc[event.page_url] = {
+              views: 0,
+              clicks: 0,
+              forms: 0,
+              scrolls: 0,
+              totalEvents: 0,
+              avgTime: 0,
+            };
+          }
 
-        acc[event.page_url].totalEvents++;
+          acc[event.page_url].totalEvents++;
 
-        switch (event.event_type) {
-          case "page_view":
-            acc[event.page_url].views++;
-            break;
-          case "click":
-            acc[event.page_url].clicks++;
-            break;
-          case "form_submit":
-            acc[event.page_url].forms++;
-            break;
-          case "scroll":
-            acc[event.page_url].scrolls++;
-            break;
+          switch (event.event_type) {
+            case "page_view":
+              acc[event.page_url].views++;
+              break;
+            case "click":
+              acc[event.page_url].clicks++;
+              break;
+            case "form_submit":
+              acc[event.page_url].forms++;
+              break;
+            case "scroll":
+              acc[event.page_url].scrolls++;
+              break;
+          }
         }
-      }
-      return acc;
-    }, {} as Record<string, any>);
+        return acc;
+      },
+      {} as Record<
+        string,
+        {
+          views: number;
+          clicks: number;
+          forms: number;
+          scrolls: number;
+          totalEvents: number;
+          avgTime: number;
+        }
+      >
+    );
 
     const topPages = Object.entries(pageData)
       .sort(([, a], [, b]) => b.totalEvents - a.totalEvents)
@@ -418,8 +556,8 @@ const DynamicLiveAnalytics = () => {
     // Event timeline
     const eventTimeline = createEventTimeline(events, selectedTimeRange);
 
-    // Recent events
-    const recentEvents = events.slice(0, 10).map((event) => ({
+    // Recent events - now with pagination support
+    const allRecentEvents = events.map((event) => ({
       id: event.id,
       event_type: event.event_type,
       page_url: event.page_url,
@@ -449,11 +587,17 @@ const DynamicLiveAnalytics = () => {
       geoData,
       topPages,
       eventTimeline,
-      recentEvents,
+      recentEvents: allRecentEvents, // Now contains all events
     };
   };
 
-  const createEventTimeline = (events: any[], timeRange: string) => {
+  const createEventTimeline = (
+    events: Array<{
+      event_type: string;
+      created_at: string;
+    }>,
+    timeRange: string
+  ) => {
     const now = new Date();
     let intervals: number;
     let intervalMs: number;
@@ -552,6 +696,53 @@ const DynamicLiveAnalytics = () => {
     return flags[country] || "🌍";
   };
 
+  const getRelativeTime = (dateString: string) => {
+    const now = new Date();
+    const eventDate = new Date(dateString);
+    const diffInSeconds = Math.floor(
+      (now.getTime() - eventDate.getTime()) / 1000
+    );
+
+    if (diffInSeconds < 60) {
+      return `${diffInSeconds} second${diffInSeconds !== 1 ? "s" : ""} ago`;
+    } else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60);
+      return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+    } else if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600);
+      return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+    } else if (diffInSeconds < 2592000) {
+      const days = Math.floor(diffInSeconds / 86400);
+      return `${days} day${days !== 1 ? "s" : ""} ago`;
+    } else if (diffInSeconds < 31536000) {
+      const months = Math.floor(diffInSeconds / 2592000);
+      return `${months} month${months !== 1 ? "s" : ""} ago`;
+    } else {
+      const years = Math.floor(diffInSeconds / 31536000);
+      return `${years} year${years !== 1 ? "s" : ""} ago`;
+    }
+  };
+
+  const getFormattedDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const isYesterday =
+      new Date(now.getTime() - 86400000).toDateString() === date.toDateString();
+
+    if (isToday) {
+      return "Today";
+    } else if (isYesterday) {
+      return "Yesterday";
+    } else {
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+      });
+    }
+  };
+
   const getEventIcon = (eventType: string) => {
     switch (eventType) {
       case "page_view":
@@ -584,6 +775,88 @@ const DynamicLiveAnalytics = () => {
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
+  };
+
+  // Pagination functions for Recent Events
+  const getPaginatedEvents = () => {
+    const filteredEvents = getFilteredAndSortedEvents();
+    const startIndex = (currentPage - 1) * eventsPerPage;
+    const endIndex = startIndex + eventsPerPage;
+    return filteredEvents.slice(startIndex, endIndex);
+  };
+
+  const totalPages = (() => {
+    const filteredEvents = getFilteredAndSortedEvents();
+    return Math.ceil(filteredEvents.length / eventsPerPage);
+  })();
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const handleEventsPerPageChange = (perPage: number) => {
+    setEventsPerPage(perPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Force a complete data refresh
+      if (selectedWebsite) {
+        // Trigger a page refresh for complete data reload
+        window.location.reload();
+      } else {
+        // If no website selected, just refresh the page
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+      // Fallback to page refresh
+      window.location.reload();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(field);
+      setSortOrder("desc");
+    }
+    setCurrentPage(1); // Reset to first page when sorting
+  };
+
+  const handleGeoCardClick = (geoData: {
+    country: string;
+    visitors: number;
+    flag: string;
+    events: number;
+  }) => {
+    setSelectedGeoDetail(geoData);
+    setShowGeoModal(true);
+  };
+
+  const closeGeoModal = () => {
+    setShowGeoModal(false);
+    setSelectedGeoDetail(null);
+  };
+
+  const handleBrowserCardClick = (browserData: {
+    name: string;
+    value: number;
+    color: string;
+    count: number;
+  }) => {
+    setSelectedBrowserDetail(browserData);
+    setShowBrowserModal(true);
+  };
+
+  const closeBrowserModal = () => {
+    setShowBrowserModal(false);
+    setSelectedBrowserDetail(null);
   };
 
   if (loading) {
@@ -965,7 +1238,8 @@ const DynamicLiveAnalytics = () => {
                 {analytics.browserData.slice(0, 4).map((browser, index) => (
                   <div
                     key={browser.name}
-                    className="text-center p-3 bg-slate-50 rounded-lg border border-slate-200"
+                    className="text-center p-3 bg-slate-50 rounded-lg border border-slate-200 hover:shadow-md transition-shadow cursor-pointer hover:bg-slate-100"
+                    onClick={() => handleBrowserCardClick(browser)}
                   >
                     <div className="text-lg font-bold text-slate-900">
                       {browser.value}%
@@ -1122,7 +1396,8 @@ const DynamicLiveAnalytics = () => {
                 {analytics.geoData.slice(0, 6).map((geo, index) => (
                   <div
                     key={geo.country}
-                    className="p-4 bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg border border-slate-200 hover:shadow-md transition-shadow"
+                    className="p-4 bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg border border-slate-200 hover:shadow-md transition-shadow cursor-pointer hover:bg-slate-100"
+                    onClick={() => handleGeoCardClick(geo)}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2">
@@ -1168,23 +1443,124 @@ const DynamicLiveAnalytics = () => {
         </Card>
       </div>
 
-      {/* Recent Events */}
+      {/* Recent Events with Pagination */}
       <Card className="bg-white/80 border-sky-100">
         <CardHeader>
-          <CardTitle className="text-slate-900 flex items-center">
-            <Zap className="w-5 h-5 mr-2 text-sky-500" />
-            Recent Events
-          </CardTitle>
-          <CardDescription>
-            Latest tracking events from your website
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-slate-900 flex items-center">
+                <Zap className="w-5 h-5 mr-2 text-sky-500" />
+                Recent Events
+              </CardTitle>
+              <CardDescription>
+                Latest tracking events from your website
+                {analytics?.recentEvents && (
+                  <span className="ml-2 text-slate-500">
+                    • {getFilteredAndSortedEvents().length} filtered events
+                    {eventFilter !== "all" && (
+                      <span className="text-slate-400">
+                        {" "}
+                        (of {analytics.recentEvents.length} total)
+                      </span>
+                    )}
+                  </span>
+                )}
+              </CardDescription>
+            </div>
+            <div className="flex items-center space-x-3">
+              {/* Filter Dropdown */}
+              <Select value={eventFilter} onValueChange={setEventFilter}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Events</SelectItem>
+                  <SelectItem value="page_view">Page Views</SelectItem>
+                  <SelectItem value="click">Clicks</SelectItem>
+                  <SelectItem value="form_submit">Form Submissions</SelectItem>
+                  <SelectItem value="scroll">Scroll Events</SelectItem>
+                  <SelectItem value="time_on_page">Time on Page</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Sort Dropdown */}
+              <Select
+                value={sortBy}
+                onValueChange={(value) => handleSort(value)}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="created_at">Date & Time</SelectItem>
+                  <SelectItem value="event_type">Event Type</SelectItem>
+                  <SelectItem value="page_url">Page URL</SelectItem>
+                  <SelectItem value="device_type">Device Type</SelectItem>
+                  <SelectItem value="browser">Browser</SelectItem>
+                  <SelectItem value="country">Country</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Sort Order Toggle */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleSort(sortBy)}
+                className="w-8 h-8 p-0"
+                title={`Sort ${
+                  sortOrder === "asc" ? "Descending" : "Ascending"
+                }`}
+              >
+                {sortOrder === "asc" ? (
+                  <SortAsc className="w-4 h-4" />
+                ) : (
+                  <SortDesc className="w-4 h-4" />
+                )}
+              </Button>
+
+              {/* Refresh Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="w-8 h-8 p-0 border-green-200 hover:border-green-300 hover:bg-green-50"
+                title="Refresh Events"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 text-green-600 ${
+                    isRefreshing ? "animate-spin" : ""
+                  }`}
+                />
+              </Button>
+
+              {/* Items Per Page */}
+              <Select
+                value={eventsPerPage.toString()}
+                onValueChange={(value) =>
+                  handleEventsPerPageChange(parseInt(value))
+                }
+              >
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-slate-500">per page</span>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {analytics?.recentEvents.map((event) => (
+            {getPaginatedEvents().map((event) => (
               <div
                 key={event.id}
-                className="flex items-center space-x-4 p-3 bg-slate-50 rounded-lg"
+                className="flex items-center space-x-4 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 <div className="flex-1">
@@ -1199,8 +1575,22 @@ const DynamicLiveAnalytics = () => {
                     </span>
                   </div>
                   <div className="text-xs text-slate-500 mt-1">
-                    {event.device_type} • {event.browser} • {event.country} •{" "}
-                    {new Date(event.created_at).toLocaleTimeString()}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span>{event.device_type}</span>
+                        <span>•</span>
+                        <span>{event.browser}</span>
+                        <span>•</span>
+                        <span>{event.country}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-slate-400">
+                        <span>{getFormattedDate(event.created_at)}</span>
+                        <span>•</span>
+                        <span className="font-medium text-slate-600">
+                          {getRelativeTime(event.created_at)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1210,8 +1600,594 @@ const DynamicLiveAnalytics = () => {
               </div>
             )}
           </div>
+
+          {/* Pagination Controls */}
+          {(() => {
+            const filteredEvents = getFilteredAndSortedEvents();
+            return (
+              filteredEvents.length > 0 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200">
+                  <div className="flex items-center space-x-2 text-sm text-slate-600">
+                    <span>
+                      Showing {(currentPage - 1) * eventsPerPage + 1} to{" "}
+                      {Math.min(
+                        currentPage * eventsPerPage,
+                        filteredEvents.length
+                      )}{" "}
+                      of {filteredEvents.length} events
+                      {eventFilter !== "all" && (
+                        <span className="text-slate-400">
+                          {" "}
+                          (filtered from {analytics?.recentEvents.length} total)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1}
+                      className="w-8 h-8 p-0"
+                    >
+                      <ChevronsLeft className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="w-8 h-8 p-0"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+
+                    <div className="flex items-center space-x-1">
+                      {Array.from(
+                        { length: Math.min(5, totalPages) },
+                        (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={
+                                currentPage === pageNum ? "default" : "outline"
+                              }
+                              size="sm"
+                              onClick={() => handlePageChange(pageNum)}
+                              className="w-8 h-8 p-0"
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        }
+                      )}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="w-8 h-8 p-0"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="w-8 h-8 p-0"
+                    >
+                      <ChevronsRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )
+            );
+          })()}
         </CardContent>
       </Card>
+
+      {/* Geographic Detail Modal */}
+      <Dialog open={showGeoModal} onOpenChange={setShowGeoModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-3">
+              <span className="text-2xl">{selectedGeoDetail?.flag}</span>
+              <div>
+                <div className="text-xl font-bold">
+                  {selectedGeoDetail?.country}
+                </div>
+                <div className="text-sm text-slate-500">
+                  Geographic Analytics
+                </div>
+              </div>
+            </DialogTitle>
+            <DialogDescription>
+              Detailed analytics and insights for {selectedGeoDetail?.country}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedGeoDetail && (
+            <div className="space-y-6">
+              {/* Key Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {selectedGeoDetail.events.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-blue-700">Total Events</div>
+                </div>
+                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div className="text-2xl font-bold text-green-600">
+                    {selectedGeoDetail.visitors.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-green-700">Unique Visitors</div>
+                </div>
+                <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {Math.round(
+                      (selectedGeoDetail.visitors / selectedGeoDetail.events) *
+                        100
+                    )}
+                    %
+                  </div>
+                  <div className="text-sm text-purple-700">Engagement Rate</div>
+                </div>
+              </div>
+
+              {/* Event Breakdown */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Event Breakdown
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {(() => {
+                    const countryEvents =
+                      analytics?.recentEvents.filter(
+                        (event) => event.country === selectedGeoDetail.country
+                      ) || [];
+
+                    const eventTypes = countryEvents.reduce((acc, event) => {
+                      acc[event.event_type] = (acc[event.event_type] || 0) + 1;
+                      return acc;
+                    }, {} as Record<string, number>);
+
+                    return Object.entries(eventTypes).map(([type, count]) => (
+                      <div key={type} className="p-3 bg-slate-50 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Badge className={getEventColor(type)}>
+                            {getEventIcon(type)}
+                            {type.replace("_", " ")}
+                          </Badge>
+                        </div>
+                        <div className="text-xl font-bold text-slate-900">
+                          {count.toLocaleString()}
+                        </div>
+                        <div className="text-sm text-slate-500">
+                          {Math.round((count / selectedGeoDetail.events) * 100)}
+                          % of total
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* Device & Browser Breakdown */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Device Types
+                  </h3>
+                  <div className="space-y-3">
+                    {(() => {
+                      const countryEvents =
+                        analytics?.recentEvents.filter(
+                          (event) => event.country === selectedGeoDetail.country
+                        ) || [];
+
+                      const deviceTypes = countryEvents.reduce((acc, event) => {
+                        acc[event.device_type] =
+                          (acc[event.device_type] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>);
+
+                      return Object.entries(deviceTypes)
+                        .sort(([, a], [, b]) => b - a)
+                        .map(([device, count]) => (
+                          <div
+                            key={device}
+                            className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <div className="w-3 h-3 bg-sky-500 rounded-full"></div>
+                              <span className="font-medium capitalize">
+                                {device}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold text-slate-900">
+                                {count}
+                              </div>
+                              <div className="text-sm text-slate-500">
+                                {Math.round(
+                                  (count / selectedGeoDetail.events) * 100
+                                )}
+                                %
+                              </div>
+                            </div>
+                          </div>
+                        ));
+                    })()}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Top Browsers
+                  </h3>
+                  <div className="space-y-3">
+                    {(() => {
+                      const countryEvents =
+                        analytics?.recentEvents.filter(
+                          (event) => event.country === selectedGeoDetail.country
+                        ) || [];
+
+                      const browsers = countryEvents.reduce((acc, event) => {
+                        acc[event.browser] = (acc[event.browser] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>);
+
+                      return Object.entries(browsers)
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 5)
+                        .map(([browser, count]) => (
+                          <div
+                            key={browser}
+                            className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                              <span className="font-medium">{browser}</span>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold text-slate-900">
+                                {count}
+                              </div>
+                              <div className="text-sm text-slate-500">
+                                {Math.round(
+                                  (count / selectedGeoDetail.events) * 100
+                                )}
+                                %
+                              </div>
+                            </div>
+                          </div>
+                        ));
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Events from this Country */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Recent Events
+                </h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {(() => {
+                    const countryEvents =
+                      analytics?.recentEvents
+                        .filter(
+                          (event) => event.country === selectedGeoDetail.country
+                        )
+                        .slice(0, 10) || [];
+
+                    return countryEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className="flex items-center space-x-3 p-3 bg-slate-50 rounded-lg"
+                      >
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <Badge className={getEventColor(event.event_type)}>
+                              {getEventIcon(event.event_type)}
+                              {event.event_type.replace("_", " ")}
+                            </Badge>
+                            <span className="text-sm text-slate-600">•</span>
+                            <span className="text-sm text-slate-600 truncate">
+                              {event.page_url}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            <span>{event.device_type}</span>
+                            <span> • </span>
+                            <span>{event.browser}</span>
+                            <span> • </span>
+                            <span className="font-medium text-slate-600">
+                              {getRelativeTime(event.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <div className="flex justify-end pt-4 border-t border-slate-200">
+                <Button onClick={closeGeoModal} variant="outline">
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Browser Detail Modal */}
+      <Dialog open={showBrowserModal} onOpenChange={setShowBrowserModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-sky-500 to-teal-500 rounded-lg flex items-center justify-center">
+                <Globe className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <div className="text-xl font-bold">
+                  {selectedBrowserDetail?.name}
+                </div>
+                <div className="text-sm text-slate-500">Browser Analytics</div>
+              </div>
+            </DialogTitle>
+            <DialogDescription>
+              Detailed analytics and insights for {selectedBrowserDetail?.name}{" "}
+              users
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedBrowserDetail && (
+            <div className="space-y-6">
+              {/* Key Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {selectedBrowserDetail.count.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-blue-700">Total Users</div>
+                </div>
+                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div className="text-2xl font-bold text-green-600">
+                    {selectedBrowserDetail.value}%
+                  </div>
+                  <div className="text-sm text-green-700">Market Share</div>
+                </div>
+                <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {(() => {
+                      const browserEvents =
+                        analytics?.recentEvents.filter(
+                          (event) =>
+                            event.browser === selectedBrowserDetail.name
+                        ) || [];
+                      return browserEvents.length.toLocaleString();
+                    })()}
+                  </div>
+                  <div className="text-sm text-purple-700">Total Events</div>
+                </div>
+              </div>
+
+              {/* Event Breakdown */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Event Breakdown
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {(() => {
+                    const browserEvents =
+                      analytics?.recentEvents.filter(
+                        (event) => event.browser === selectedBrowserDetail.name
+                      ) || [];
+
+                    const eventTypes = browserEvents.reduce((acc, event) => {
+                      acc[event.event_type] = (acc[event.event_type] || 0) + 1;
+                      return acc;
+                    }, {} as Record<string, number>);
+
+                    return Object.entries(eventTypes).map(([type, count]) => (
+                      <div key={type} className="p-3 bg-slate-50 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Badge className={getEventColor(type)}>
+                            {getEventIcon(type)}
+                            {type.replace("_", " ")}
+                          </Badge>
+                        </div>
+                        <div className="text-xl font-bold text-slate-900">
+                          {count.toLocaleString()}
+                        </div>
+                        <div className="text-sm text-slate-500">
+                          {Math.round((count / browserEvents.length) * 100)}% of
+                          total
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* Device & Geographic Breakdown */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Device Types
+                  </h3>
+                  <div className="space-y-3">
+                    {(() => {
+                      const browserEvents =
+                        analytics?.recentEvents.filter(
+                          (event) =>
+                            event.browser === selectedBrowserDetail.name
+                        ) || [];
+
+                      const deviceTypes = browserEvents.reduce((acc, event) => {
+                        acc[event.device_type] =
+                          (acc[event.device_type] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>);
+
+                      return Object.entries(deviceTypes)
+                        .sort(([, a], [, b]) => b - a)
+                        .map(([device, count]) => (
+                          <div
+                            key={device}
+                            className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <div className="w-3 h-3 bg-sky-500 rounded-full"></div>
+                              <span className="font-medium capitalize">
+                                {device}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold text-slate-900">
+                                {count}
+                              </div>
+                              <div className="text-sm text-slate-500">
+                                {Math.round(
+                                  (count / browserEvents.length) * 100
+                                )}
+                                %
+                              </div>
+                            </div>
+                          </div>
+                        ));
+                    })()}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Top Countries
+                  </h3>
+                  <div className="space-y-3">
+                    {(() => {
+                      const browserEvents =
+                        analytics?.recentEvents.filter(
+                          (event) =>
+                            event.browser === selectedBrowserDetail.name
+                        ) || [];
+
+                      const countries = browserEvents.reduce((acc, event) => {
+                        acc[event.country] = (acc[event.country] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>);
+
+                      return Object.entries(countries)
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 5)
+                        .map(([country, count]) => (
+                          <div
+                            key={country}
+                            className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <span className="text-lg">
+                                {getCountryFlag(country)}
+                              </span>
+                              <span className="font-medium">{country}</span>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold text-slate-900">
+                                {count}
+                              </div>
+                              <div className="text-sm text-slate-500">
+                                {Math.round(
+                                  (count / browserEvents.length) * 100
+                                )}
+                                %
+                              </div>
+                            </div>
+                          </div>
+                        ));
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Events from this Browser */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Recent Events
+                </h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {(() => {
+                    const browserEvents =
+                      analytics?.recentEvents
+                        .filter(
+                          (event) =>
+                            event.browser === selectedBrowserDetail.name
+                        )
+                        .slice(0, 10) || [];
+
+                    return browserEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className="flex items-center space-x-3 p-3 bg-slate-50 rounded-lg"
+                      >
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <Badge className={getEventColor(event.event_type)}>
+                              {getEventIcon(event.event_type)}
+                              {event.event_type.replace("_", " ")}
+                            </Badge>
+                            <span className="text-sm text-slate-600">•</span>
+                            <span className="text-sm text-slate-600 truncate">
+                              {event.page_url}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            <span>{event.device_type}</span>
+                            <span> • </span>
+                            <span>{event.country}</span>
+                            <span> • </span>
+                            <span className="font-medium text-slate-600">
+                              {getRelativeTime(event.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <div className="flex justify-end pt-4 border-t border-slate-200">
+                <Button onClick={closeBrowserModal} variant="outline">
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
